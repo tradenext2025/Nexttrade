@@ -1,0 +1,2871 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Nexttrade</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<link rel="stylesheet" href="styles.css"/></head>
+<body>
+<!-- NAVBAR -->
+<nav class="navbar">
+<div class="nav-logo">Nexttrade</div>
+<div class="nav-right">
+<span class="tag" id="demoTag"></span>
+<span style="font-size:.75rem;font-family:DM Mono,monospace;color:var(--text2)" id="authInfo"></span>
+<button class="btn-buy" id="loginBtn" onclick="derivLogin()" style="padding:6px 14px;font-size:.75rem;border-radius:20px">Connect Deriv</button>
+<button class="btn-stop" id="logoutBtn" onclick="derivLogout()" style="padding:6px 14px;font-size:.75rem;border-radius:20px;display:none">Logout</button>
+<div class="balance-badge">
+<span id="navBalance">0.00 USD</span>
+</div>
+<button class="theme-btn" onclick="toggleTheme()" title="Toggle theme">
+<span id="themeIcon">☀️</span>
+</button>
+</div>
+</nav>
+<!-- PAGE -->
+<div class="page">
+<!-- ACCOUNT SWITCHER -->
+<div class="card" id="accountSwitcherCard" style="display:none">
+<div class="card-title"><span class="dot"></span>Accounts
+<button id="acctToggleBtn" onclick="toggleAccountVisibility()" style="margin-left:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:2px 10px;color:var(--text2);font-size:1rem;cursor:pointer" title="Show/Hide account IDs">⌄</button>
+<span style="margin-left:auto;font-size:.7rem;color:var(--text2)" id="activeAcctLabel"></span>
+</div>
+<div class="acct-switcher-wrap" id="accountSwitcher"></div>
+</div>
+<!-- ROW 1: BALANCE + MARKET -->
+<div class="row row-2">
+<!-- BALANCE CARD -->
+<div class="card balance-card">
+<div class="card-title"><span class="dot"></span>Account Balance</div>
+<div class="balance-row">
+<div>
+<div class="balance-sub">Available Balance</div>
+<div class="balance-main" id="balanceMain">0.00 <small style="font-size:.9rem">USD</small></div>
+<div class="balance-stats">
+<div class="bstat">
+<span class="bstat-label">Today P/L</span>
+<span class="bstat-val up" id="todayPL">+0.00</span>
+</div>
+<div class="bstat">
+<span class="bstat-label">Win Rate</span>
+<span class="bstat-val up" id="winRate">0%</span>
+</div>
+<div class="bstat">
+<span class="bstat-label">Total Trades</span>
+<span class="bstat-val" id="totalTrades">0</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- MARKET SELECTOR -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Market</div>
+<div class="select-wrap" style="margin-bottom:12px">
+<select class="market-select" id="marketSelect" onchange="onMarketChange()">
+<optgroup label="Volatility Index">
+<option value="V10">Volatility 10 Index</option>
+<option value="V25">Volatility 25 Index</option>
+<option value="V50">Volatility 50 Index</option>
+<option value="V75">Volatility 75 Index</option>
+<option value="V100" selected>Volatility 100 Index</option>
+</optgroup>
+<optgroup label="Volatility 1s Index">
+<option value="V10_1S">Volatility 10(1s) Index</option>
+<option value="V25_1S">Volatility 25(1s) Index</option>
+<option value="V50_1S">Volatility 50(1s) Index</option>
+<option value="V75_1S">Volatility 75(1s) Index</option>
+<option value="V100_1S">Volatility 100(1s) Index</option>
+</optgroup>
+</select>
+</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+<span class="live-dot"></span>
+<span style="font-size:.72rem;color:var(--text2)">LIVE PRICE</span>
+</div>
+<div class="price-display" id="priceDisplay">
+1497.8<span class="last-digit" id="lastDigit">0</span>
+</div>
+<div class="price-change up" id="priceChange">▲ +0.02 (0.00%)</div>
+<div style="margin-top:10px">
+<div class="tag-row">
+<span class="tag" id="tagMarket">V100</span>
+<span class="tag" id="tagSpread">Spread: 0.01</span>
+<span class="tag" id="tagTick">Tick: —</span>
+</div>
+</div>
+</div>
+</div>
+<!-- ROW 2: CHART -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Price Chart
+<span style="margin-left:auto;display:flex;gap:6px">
+<button class="stake-preset" onclick="setChartRange(50)">50T</button>
+<button class="stake-preset" onclick="setChartRange(100)">100T</button>
+<button class="stake-preset" onclick="setChartRange(200)">200T</button>
+</span>
+</div>
+<div class="chart-wrap">
+<canvas id="priceChart"></canvas>
+</div>
+<div class="chart-labels">
+<span id="chartMin">—</span>
+<span id="chartMid">—</span>
+<span id="chartMax">—</span>
+</div>
+</div>
+<!-- ROW 3: TRADE PANEL + LDP -->
+<div class="row row-main">
+<!-- TRADE PANEL -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Trade Panel</div>
+<!-- TRADE TYPE TABS -->
+<div class="trade-tabs">
+<button class="trade-tab active" onclick="setTradeType('overunder',this)">Over/Under</button>
+<button class="trade-tab" onclick="setTradeType('evenodd',this)">Even/Odd</button>
+<button class="trade-tab" onclick="setTradeType('matches',this)">Matches/Differs</button>
+<button class="trade-tab" onclick="setTradeType('risfall',this)">Rise/Fall</button>
+<button class="trade-tab" onclick="setTradeType('touch',this)">Touch/No Touch</button>
+</div>
+<div class="section-divider"></div>
+<!-- OVER/UNDER PANEL -->
+<div id="panel-overunder">
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Last Digit Prediction</div>
+<div class="digit-grid" id="digitGrid">
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Duration</label>
+<input class="form-input" type="number" id="ouDuration" value="5" min="1" max="10"/>
+</div>
+<div class="form-group">
+<label class="form-label">Ticks</label>
+<select class="form-input market-select" id="ouDurType">
+<option value="ticks" selected>Ticks</option>
+<option value="seconds">Seconds</option>
+<option value="minutes">Minutes</option>
+</select>
+</div>
+</div>
+<div class="form-label" style="margin-bottom:6px">Stake</div>
+<div class="stake-row">
+<input class="stake-input" type="number" id="ouStake" value="1.00" min="0.35" step="0.01"/>
+<button class="stake-preset" onclick="setStake('ou',1)">$1</button>
+<button class="stake-preset" onclick="setStake('ou',5)">$5</button>
+<button class="stake-preset" onclick="setStake('ou',10)">$10</button>
+</div>
+<div class="payout-row">
+<div class="payout-item">
+<span class="payout-label">Over Payout</span>
+<span class="payout-val" id="ouOverPayout">0.00</span>
+</div>
+<div class="payout-item">
+<span class="payout-label">Stake</span>
+<span class="payout-val" id="ouStakeDisplay">1.00</span>
+</div>
+<div class="payout-item">
+<span class="payout-label">Under Payout</span>
+<span class="payout-val" id="ouUnderPayout">0.00</span>
+</div>
+</div>
+<button class="btn-over" onclick="placeTrade('over')">▲ Over — Win <span id="ouOverWin">0.00</span> USD</button>
+<button class="btn-under" onclick="placeTrade('under')">▼ Under — Win <span id="ouUnderWin">0.00</span> USD</button>
+</div>
+<!-- EVEN/ODD PANEL -->
+<div id="panel-evenodd" style="display:none">
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Duration</label>
+<input class="form-input" type="number" id="eoDuration" value="5" min="1" max="10"/>
+</div>
+<div class="form-group">
+<label class="form-label">Type</label>
+<select class="form-input market-select" id="eoDurType">
+<option value="ticks" selected>Ticks</option>
+<option value="seconds">Seconds</option>
+</select>
+</div>
+</div>
+<div class="form-label" style="margin-bottom:6px">Stake</div>
+<div class="stake-row">
+<input class="stake-input" type="number" id="eoStake" value="1.00" min="0.35" step="0.01"/>
+<button class="stake-preset" onclick="setStake('eo',1)">$1</button>
+<button class="stake-preset" onclick="setStake('eo',5)">$5</button>
+<button class="stake-preset" onclick="setStake('eo',10)">$10</button>
+</div>
+<div class="payout-row">
+<div class="payout-item"><span class="payout-label">Payout</span><span class="payout-val" id="eoPayout">1.95</span></div>
+<div class="payout-item"><span class="payout-label">Stake</span><span class="payout-val" id="eoStakeDisplay">1.00</span></div>
+<div class="payout-item"><span class="payout-label">Win</span><span class="payout-val" id="eoWin">0.95</span></div>
+</div>
+<div class="btn-pair">
+<button class="btn-rise" onclick="placeTrade('even')">Even</button>
+<button class="btn-fall" onclick="placeTrade('odd')">Odd</button>
+</div>
+</div>
+<!-- MATCHES/DIFFERS PANEL -->
+<div id="panel-matches" style="display:none">
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Select Digit</div>
+<div class="digit-grid" id="matchDigitGrid"></div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Duration</label>
+<input class="form-input" type="number" id="mdDuration" value="5" min="1"/>
+</div>
+<div class="form-group">
+<label class="form-label">Type</label>
+<select class="form-input market-select">
+<option>Ticks</option>
+</select>
+</div>
+</div>
+<div class="stake-row">
+<input class="stake-input" type="number" id="mdStake" value="1.00" min="0.35" step="0.01"/>
+<button class="stake-preset" onclick="setStake('md',1)">$1</button>
+<button class="stake-preset" onclick="setStake('md',5)">$5</button>
+<button class="stake-preset" onclick="setStake('md',10)">$10</button>
+</div>
+<div class="btn-pair">
+<button class="btn-rise" onclick="placeTrade('matches')">Matches</button>
+<button class="btn-fall" onclick="placeTrade('differs')">Differs</button>
+</div>
+</div>
+<!-- RISE/FALL PANEL -->
+<div id="panel-risfall" style="display:none">
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Duration</label>
+<input class="form-input" type="number" id="rfDuration" value="5" min="1"/>
+</div>
+<div class="form-group">
+<label class="form-label">Type</label>
+<select class="form-input market-select" id="rfDurType">
+<option>Ticks</option>
+<option>Seconds</option>
+<option>Minutes</option>
+</select>
+</div>
+</div>
+<div class="stake-row">
+<input class="stake-input" type="number" id="rfStake" value="1.00" min="0.35" step="0.01"/>
+<button class="stake-preset" onclick="setStake('rf',1)">$1</button>
+<button class="stake-preset" onclick="setStake('rf',5)">$5</button>
+<button class="stake-preset" onclick="setStake('rf',10)">$10</button>
+</div>
+<div class="payout-row">
+<div class="payout-item"><span class="payout-label">Rise Payout</span><span class="payout-val">1.95</span></div>
+<div class="payout-item"><span class="payout-label">Stake</span><span class="payout-val" id="rfStakeDisplay">1.00</span></div>
+<div class="payout-item"><span class="payout-label">Fall Payout</span><span class="payout-val">1.95</span></div>
+</div>
+<div class="btn-pair">
+<button class="btn-rise" onclick="placeTrade('rise')">▲ Rise</button>
+<button class="btn-fall" onclick="placeTrade('fall')">▼ Fall</button>
+</div>
+</div>
+<!-- TOUCH/NO TOUCH PANEL -->
+<div id="panel-touch" style="display:none">
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Barrier</label>
+<input class="form-input" type="number" id="tBarrier" value="1500" step="0.01"/>
+</div>
+<div class="form-group">
+<label class="form-label">Duration</label>
+<input class="form-input" type="number" id="tDuration" value="5" min="1"/>
+</div>
+</div>
+<div class="stake-row">
+<input class="stake-input" type="number" id="tStake" value="1.00" min="0.35" step="0.01"/>
+<button class="stake-preset" onclick="setStake('t',1)">$1</button>
+<button class="stake-preset" onclick="setStake('t',5)">$5</button>
+<button class="stake-preset" onclick="setStake('t',10)">$10</button>
+</div>
+<div class="btn-pair">
+<button class="btn-rise" onclick="placeTrade('touch')">Touch</button>
+<button class="btn-fall" onclick="placeTrade('notouch')">No Touch</button>
+</div>
+</div>
+</div>
+<!-- LDP PANEL -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Last Digit Probability</div>
+<div class="ldp-grid" id="ldpGrid"></div>
+<div class="section-divider"></div>
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Digit History
+<span style="margin-left:auto;font-size:.68rem;color:var(--text2)" id="ldpSampleSize">Last 1000 ticks</span>
+</div>
+<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="ldpHistoryRow">
+</div>
+<div class="section-divider"></div>
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Streak Tracker</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div class="bot-stat">
+<div class="bot-stat-label">Current Streak</div>
+<div class="bot-stat-val up" id="currentStreak">—</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Last Digit</div>
+<div class="bot-stat-val" id="ldpLastDigit" style="font-size:1.4rem">—</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Hot Digit</div>
+<div class="bot-stat-val up" id="hotDigit">—</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Cold Digit</div>
+<div class="bot-stat-val dn" id="coldDigit">—</div>
+</div>
+</div>
+<div class="section-divider" style="margin-top:14px"></div>
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Tick Log
+<span style="margin-left:auto">
+<button class="stake-preset" onclick="clearTickLog()">Clear</button>
+</span>
+</div>
+<div id="tickLog" style="
+height:120px;overflow-y:auto;
+background:var(--bg3);border-radius:var(--rs);
+padding:8px 10px;font-family:'DM Mono',monospace;
+font-size:.7rem;color:var(--text2);
+border:1px solid var(--border);
+"></div>
+</div>
+</div>
+<!-- ROW 4: BOT PANEL + QUICK STRATEGY -->
+<div class="row row-2">
+<!-- BOT PANEL -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Bot / Martingale Panel</div>
+<div class="bot-strategy-tabs">
+<button class="strat-tab active" onclick="setStrategy('martingale',this)">Martingale</button>
+<button class="strat-tab" onclick="setStrategy('antimartingale',this)">Anti-Martingale</button>
+<button class="strat-tab" onclick="setStrategy('dalembert',this)">D'Alembert</button>
+<button class="strat-tab" onclick="setStrategy('oscar',this)">Oscar's Grind</button>
+<button class="strat-tab" onclick="setStrategy('fibonacci',this)">Fibonacci</button>
+</div>
+<div id="stratDesc" style="
+font-size:.72rem;color:var(--text2);
+background:var(--bg3);border-radius:var(--rs);
+padding:10px 12px;margin-bottom:12px;
+border:1px solid var(--border);line-height:1.5;
+"></div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Initial Stake</label>
+<input class="form-input" type="number" id="botStake" value="1.00" min="0.35" step="0.01"/>
+</div>
+<div class="form-group">
+<label class="form-label">Multiplier</label>
+<input class="form-input" type="number" id="botMultiplier" value="2.0" min="1.1" step="0.1"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Max Stake</label>
+<input class="form-input" type="number" id="botMaxStake" value="50" min="1"/>
+</div>
+<div class="form-group">
+<label class="form-label">Max Losses</label>
+<input class="form-input" type="number" id="botMaxLoss" value="5" min="1"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Take Profit</label>
+<input class="form-input" type="number" id="botTP" value="10" min="0" step="0.01"/>
+</div>
+<div class="form-group">
+<label class="form-label">Stop Loss</label>
+<input class="form-input" type="number" id="botSL" value="20" min="0" step="0.01"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Trade Type</label>
+<select class="form-input market-select" id="botTradeType">
+<option value="evenodd">Even/Odd</option>
+<option value="overunder">Over/Under</option>
+<option value="risfall">Rise/Fall</option>
+<option value="matches">Matches/Differs</option>
+</select>
+</div>
+<div class="form-group">
+<label class="form-label">Contract</label>
+<select class="form-input market-select" id="botContract">
+<option value="even">Even</option>
+<option value="odd">Odd</option>
+<option value="over5">Over 5</option>
+<option value="under5">Under 5</option>
+<option value="rise">Rise</option>
+<option value="fall">Fall</option>
+</select>
+</div>
+</div>
+<div class="section-divider"></div>
+<div class="bot-grid">
+<div class="bot-stat">
+<div class="bot-stat-label">Current Stake</div>
+<div class="bot-stat-val" id="botCurrentStake">1.00</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Total Rounds</div>
+<div class="bot-stat-val" id="botRounds">0</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Bot P/L</div>
+<div class="bot-stat-val up" id="botPL">+0.00</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Consecutive Loss</div>
+<div class="bot-stat-val dn" id="botConsecLoss">0</div>
+</div>
+</div>
+<div class="progress-bar-wrap">
+<div class="progress-bar" id="botProgress"></div>
+</div>
+<div class="bot-controls">
+<button class="btn-start" id="botStartBtn" onclick="toggleBot()">▶ Start Bot</button>
+<button class="btn-stop" onclick="resetBot()">↺ Reset</button>
+</div>
+<div class="bot-status" style="margin-bottom:8px"><div class="status-dot" id="wsDot"></div><span id="wsStatusText">Connecting...</span></div><div class="bot-status">
+<div class="status-dot" id="botStatusDot"></div>
+<span id="botStatusText">Bot is not running</span>
+</div>
+</div>
+<!-- QUICK STRATEGY -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Quick Strategy</div>
+<div class="qs-grid">
+<div class="qs-card active" onclick="selectQS(this,'Conservative')">
+<div class="qs-name">Conservative</div>
+<div class="qs-desc">Low risk, small consistent gains. Fixed stake, no multiplier.</div>
+<span class="qs-badge">Low Risk</span>
+</div>
+<div class="qs-card" onclick="selectQS(this,'Moderate')">
+<div class="qs-name">Moderate</div>
+<div class="qs-desc">Balanced approach. 1.5x multiplier on loss, reset on win.</div>
+<span class="qs-badge med">Med Risk</span>
+</div>
+<div class="qs-card" onclick="selectQS(this,'Aggressive')">
+<div class="qs-name">Aggressive</div>
+<div class="qs-desc">2x Martingale. High reward potential, higher drawdown risk.</div>
+<span class="qs-badge high">High Risk</span>
+</div>
+<div class="qs-card" onclick="selectQS(this,'Scalper')">
+<div class="qs-name">Scalper</div>
+<div class="qs-desc">Many small trades. Fibonacci sequence, tight stop loss.</div>
+<span class="qs-badge med">Med Risk</span>
+</div>
+</div>
+<div class="section-divider"></div>
+<div class="card-title" style="margin-bottom:10px"><span class="dot"></span>Strategy Settings
+<span style="margin-left:auto;font-size:.7rem;color:var(--accent)" id="qsActiveName">Conservative</span>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Base Stake</label>
+<input class="form-input" type="number" id="qsBaseStake" value="1.00" step="0.01"/>
+</div>
+<div class="form-group">
+<label class="form-label">Duration (Ticks)</label>
+<input class="form-input" type="number" id="qsDuration" value="5" min="1"/>
+</div>
+</div>
+<div class="form-row">
+<div class="form-group">
+<label class="form-label">Take Profit</label>
+<input class="form-input" type="number" id="qsTP" value="5.00" step="0.01"/>
+</div>
+<div class="form-group">
+<label class="form-label">Stop Loss</label>
+<input class="form-input" type="number" id="qsSL" value="10.00" step="0.01"/>
+</div>
+</div>
+<button class="btn-buy" onclick="applyQS()" style="margin-top:4px">Apply Strategy to Bot</button>
+<div class="section-divider" style="margin-top:14px"></div>
+<div class="card-title" style="margin-bottom:8px"><span class="dot"></span>Risk Meter</div>
+<div style="display:flex;align-items:center;gap:10px">
+<div style="flex:1">
+<div class="progress-bar-wrap" style="height:8px">
+<div class="progress-bar" id="riskBar" style="background:linear-gradient(90deg,var(--accent),var(--accent3),var(--accent2))"></div>
+</div>
+</div>
+<span style="font-size:.75rem;font-family:'DM Mono',monospace;color:var(--text2)" id="riskLabel">Low</span>
+</div>
+</div>
+</div>
+<!-- ROW 5: TRADE HISTORY -->
+<div class="card">
+<div class="card-title"><span class="dot"></span>Trade History
+<span style="margin-left:auto;display:flex;gap:6px">
+<button class="stake-preset" onclick="filterHistory('all')">All</button>
+<button class="stake-preset" onclick="filterHistory('win')">Wins</button>
+<button class="stake-preset" onclick="filterHistory('loss')">Losses</button>
+<button class="stake-preset" onclick="clearHistory()">Clear</button>
+</span>
+</div>
+<div style="overflow-x:auto">
+<table class="history-table">
+<thead>
+<tr>
+<th>#</th>
+<th>Time</th>
+<th>Market</th>
+<th>Type</th>
+<th>Contract</th>
+<th>Stake</th>
+<th>Payout</th>
+<th>P/L</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody id="historyBody">
+<tr>
+<td colspan="9" class="empty-row">No trades yet. Place your first trade above.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div style="display:flex;justify-content:space-between;margin-top:12px;flex-wrap:wrap;gap:8px">
+<div style="display:flex;gap:14px">
+<div class="bstat">
+<span class="bstat-label">Total Wins</span>
+<span class="bstat-val up" id="histWins">0</span>
+</div>
+<div class="bstat">
+<span class="bstat-label">Total Losses</span>
+<span class="bstat-val dn" id="histLosses">0</span>
+</div>
+<div class="bstat">
+<span class="bstat-label">Net P/L</span>
+<span class="bstat-val" id="histNetPL">0.00</span>
+</div>
+<div class="bstat">
+<span class="bstat-label">Win Rate</span>
+<span class="bstat-val up" id="histWinRate">0%</span>
+</div>
+</div>
+</div>
+</div>
+</div><!-- end .page -->
+<!-- TOAST -->
+<div class="toast" id="toast">
+<div class="toast-dot"></div>
+<span id="toastMsg">Trade placed</span>
+</div>
+<script>
+// ══ STATE ═════════════════════════════════════════════════════════
+const state = {
+theme: 'dark',
+balance: 1000.00,
+market: 'V100',
+price: 1497.80,
+prevPrice: 1497.80,
+lastDigit: 0,
+tradeType: 'overunder',
+selectedDigit: 5,
+selectedMatchDigit: 0,
+strategy: 'martingale',
+botRunning: false,
+botInterval: null,
+botRounds: 0,
+botPL: 0,
+botConsecLoss: 0,
+botCurrentStake: 1.00,
+fibSequence: [1,1],
+fibIndex: 0,
+dalembertStake: 1.00,
+oscarStake: 1.00,
+oscarProfit: 0,
+tradeHistory: [],
+allHistory: [],
+digitCounts: new Array(10).fill(0),
+tickCount: 0,
+chartData: [],
+chartRange: 50,
+streakDigit: null,
+streakCount: 0,
+};
+const MARKETS = {
+V10:'Volatility 10 Index',V25:'Volatility 25 Index',
+V50:'Volatility 50 Index',V75:'Volatility 75 Index',
+V100:'Volatility 100 Index',V10_1S:'Volatility 10(1s) Index',
+V25_1S:'Volatility 25(1s) Index',V50_1S:'Volatility 50(1s) Index',
+V75_1S:'Volatility 75(1s) Index',V100_1S:'Volatility 100(1s) Index',
+};
+const VOLATILITY = {
+V10:0.02,V25:0.05,V50:0.1,V75:0.15,V100:0.25,
+V10_1S:0.03,V25_1S:0.06,V50_1S:0.12,V75_1S:0.18,V100_1S:0.30,
+};
+const STRAT_DESC = {
+martingale:'Double your stake after every loss. Reset to base stake after a win. High risk of large drawdowns.',
+antimartingale:'Double your stake after every win. Reset to base stake after a loss. Locks in profits during streaks.',
+dalembert:'Increase stake by 1 unit after a loss, decrease by 1 unit after a win. Slower progression.',
+oscar:'Only increase stake by 1 unit after a win when in profit. Conservative recovery system.',
+fibonacci:'Follow the Fibonacci sequence (1,1,2,3,5,8...) on losses. Move back 2 steps on a win.',
+};
+// ══ THEME ═════════════════════════════════════════════════════════
+function toggleTheme(){
+state.theme = state.theme==='dark'?'light':'dark';
+document.documentElement.setAttribute('data-theme',state.theme);
+document.getElementById('themeIcon').textContent = state.theme==='dark'?'☀️':'🌙';
+}
+// ══ PRICE SIMULATION ══════════════════════════════════════════════
+function simulatePrice(){
+const vol = VOLATILITY[state.market] || 0.25;
+const change = (Math.random()-0.5)*2*vol;
+state.prevPrice = state.price;
+state.price = Math.max(1, state.price + change);
+state.lastDigit = Math.floor(state.price*10)%10;
+state.tickCount++;
+state.chartData.push(state.price);
+if(state.chartData.length>500) state.chartData.shift();
+updateDigitCounts(state.lastDigit);
+updatePriceUI();
+updateChart();
+updateLDP();
+updateTickLog();
+updateTagTick();
+}
+function updateDigitCounts(d){
+state.digitCounts[d]++;
+if(state.streakDigit===d){
+state.streakCount++;
+} else {
+state.streakDigit=d;
+state.streakCount=1;
+}
+}
+</script>
+<script>
+// ══ UI UPDATES ════════════════════════════════════════════════════
+function updatePriceUI(){
+const p = state.price.toFixed(2);
+const d = state.lastDigit;
+const whole = p.slice(0,-1);
+document.getElementById('priceDisplay').innerHTML =
+whole+'<span class="last-digit" id="lastDigit">'+d+'</span>';
+const diff = state.price - state.prevPrice;
+const pct = ((diff/state.prevPrice)*100).toFixed(3);
+const el = document.getElementById('priceChange');
+if(diff>=0){
+el.textContent='▲ +'+diff.toFixed(3)+' ('+pct+'%)';
+el.className='price-change up';
+} else {
+el.textContent='▼ '+diff.toFixed(3)+' ('+pct+'%)';
+el.className='price-change dn';
+}
+}
+function updateTagTick(){
+document.getElementById('tagTick').textContent='Tick: '+state.tickCount;
+}
+function onMarketChange(){
+state.market = document.getElementById('marketSelect').value;
+document.getElementById('tagMarket').textContent = state.market;
+state.price = 100 + Math.random()*1500;
+state.chartData = [];
+state.digitCounts = new Array(10).fill(0);
+state.tickCount = 0;
+}
+function updateLDP(){
+const total = state.digitCounts.reduce((a,b)=>a+b,0)||1;
+const max = Math.max(...state.digitCounts);
+const min = Math.min(...state.digitCounts);
+const hotD = state.digitCounts.indexOf(max);
+const coldD = state.digitCounts.indexOf(min);
+// LDP Grid
+const grid = document.getElementById('ldpGrid');
+grid.innerHTML='';
+for(let i=0;i<10;i++){
+const pct = ((state.digitCounts[i]/total)*100).toFixed(1);
+const isHot = i===hotD;
+const isCold = i===coldD;
+const barW = ((state.digitCounts[i]/max)*100).toFixed(0);
+grid.innerHTML+=`
+<div class="ldp-cell ${isHot?'hot':''} ${isCold?'cold':''}">
+<div class="digit">${i}</div>
+<div class="pct">${pct}%</div>
+<div class="ldp-bar-wrap">
+<div class="ldp-bar" style="width:${barW}%"></div>
+</div>
+</div>`;
+}
+// Streak + Hot/Cold
+document.getElementById('currentStreak').textContent =
+state.streakCount+'x '+state.streakDigit;
+document.getElementById('ldpLastDigit').textContent = state.lastDigit;
+document.getElementById('hotDigit').textContent =
+hotD+' ('+((max/total)*100).toFixed(1)+'%)';
+document.getElementById('coldDigit').textContent =
+coldD+' ('+((min/total)*100).toFixed(1)+'%)';
+// Digit grid in trade panel
+updateDigitGrid();
+}
+function updateDigitGrid(){
+const total = state.digitCounts.reduce((a,b)=>a+b,0)||1;
+const max = Math.max(...state.digitCounts);
+const min = Math.min(...state.digitCounts);
+const hotD = state.digitCounts.indexOf(max);
+const coldD = state.digitCounts.indexOf(min);
+['digitGrid','matchDigitGrid'].forEach(id=>{
+const g = document.getElementById(id);
+if(!g) return;
+g.innerHTML='';
+for(let i=0;i<10;i++){
+const pct=((state.digitCounts[i]/total)*100).toFixed(1);
+const isActive = id==='digitGrid'
+? i===state.selectedDigit
+: i===state.selectedMatchDigit;
+const isHot = i===hotD;
+const isCold = i===coldD;
+g.innerHTML+=`
+<div class="digit-btn
+${isActive?'active':''}
+${!isActive&&isHot?'hot':''}
+${!isActive&&isCold?'cold':''}"
+onclick="${id==='digitGrid'?'selectDigit':'selectMatchDigit'}(${i},this)">
+${i}
+<span class="pct">${pct}%</span>
+</div>`;
+}
+});
+}
+function updateTickLog(){
+const log = document.getElementById('tickLog');
+const t = new Date().toLocaleTimeString();
+const line = document.createElement('div');
+line.style.cssText='display:flex;justify-content:space-between;padding:1px 0;border-bottom:1px solid var(--border)';
+line.innerHTML=`
+<span style="color:var(--text3)">${t}</span>
+<span>${MARKETS[state.market]||state.market}</span>
+<span style="color:var(--accent);font-weight:700">${state.price.toFixed(2)}</span>
+<span style="color:var(--accent3)">D:${state.lastDigit}</span>`;
+log.prepend(line);
+if(log.children.length>50){
+log.removeChild(log.lastChild);
+}
+}
+function clearTickLog(){
+document.getElementById('tickLog').innerHTML='';
+}
+</script>
+<script>
+// ══ CHART ═════════════════════════════════════════════════════════
+let chartCtx, chartGrad;
+function initChart(){
+const canvas = document.getElementById('priceChart');
+chartCtx = canvas.getContext('2d');
+canvas.width = canvas.offsetWidth;
+canvas.height = canvas.offsetHeight;
+}
+function setChartRange(n){
+state.chartRange = n;
+}
+function updateChart(){
+if(!chartCtx) return;
+const canvas = document.getElementById('priceChart');
+const W = canvas.offsetWidth;
+const H = canvas.offsetHeight;
+canvas.width = W;
+canvas.height = H;
+const data = state.chartData.slice(-state.chartRange);
+if(data.length < 2) return;
+const min = Math.min(...data);
+const max = Math.max(...data);
+const range = max - min || 0.01;
+const pad = 10;
+// Background
+chartCtx.clearRect(0,0,W,H);
+// Grid lines
+chartCtx.strokeStyle = getComputedStyle(document.documentElement)
+.getPropertyValue('--border').trim();
+chartCtx.lineWidth = 1;
+for(let i=0;i<=4;i++){
+const y = pad + (i/4)*(H-pad*2);
+chartCtx.beginPath();
+chartCtx.moveTo(0,y);
+chartCtx.lineTo(W,y);
+chartCtx.stroke();
+}
+// Gradient fill
+const grad = chartCtx.createLinearGradient(0,0,0,H);
+grad.addColorStop(0,'rgba(0,229,160,0.18)');
+grad.addColorStop(1,'rgba(0,229,160,0.00)');
+// Line
+chartCtx.beginPath();
+data.forEach((v,i)=>{
+const x = (i/(data.length-1))*W;
+const y = pad + (1-((v-min)/range))*(H-pad*2);
+i===0 ? chartCtx.moveTo(x,y) : chartCtx.lineTo(x,y);
+});
+// Fill
+const lastX = W;
+const lastY = pad + (1-((data[data.length-1]-min)/range))*(H-pad*2);
+chartCtx.lineTo(lastX, H);
+chartCtx.lineTo(0, H);
+chartCtx.closePath();
+chartCtx.fillStyle = grad;
+chartCtx.fill();
+// Redraw line on top
+chartCtx.beginPath();
+data.forEach((v,i)=>{
+const x = (i/(data.length-1))*W;
+const y = pad + (1-((v-min)/range))*(H-pad*2);
+i===0 ? chartCtx.moveTo(x,y) : chartCtx.lineTo(x,y);
+});
+chartCtx.strokeStyle = '#00e5a0';
+chartCtx.lineWidth = 2;
+chartCtx.lineJoin = 'round';
+chartCtx.stroke();
+// Last price dot
+chartCtx.beginPath();
+chartCtx.arc(lastX-1, lastY, 4, 0, Math.PI*2);
+chartCtx.fillStyle = '#00e5a0';
+chartCtx.fill();
+// Chart labels
+document.getElementById('chartMin').textContent = min.toFixed(2);
+document.getElementById('chartMid').textContent = ((min+max)/2).toFixed(2);
+document.getElementById('chartMax').textContent = max.toFixed(2);
+}
+</script>
+<script>
+// ══ TRADE LOGIC ═══════════════════════════════════════════════════
+function setTradeType(type, btn){
+state.tradeType = type;
+document.querySelectorAll('.trade-tab').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+['overunder','evenodd','matches','risfall','touch'].forEach(p=>{
+document.getElementById('panel-'+p).style.display='none';
+});
+document.getElementById('panel-'+type).style.display='block';
+}
+function selectDigit(d, el){
+state.selectedDigit = d;
+document.querySelectorAll('#digitGrid .digit-btn').forEach(b=>b.classList.remove('active'));
+el.classList.add('active');
+updatePayouts();
+}
+function selectMatchDigit(d, el){
+state.selectedMatchDigit = d;
+document.querySelectorAll('#matchDigitGrid .digit-btn').forEach(b=>b.classList.remove('active'));
+el.classList.add('active');
+}
+function setStake(type, val){
+const map = {ou:'ouStake',eo:'eoStake',md:'mdStake',rf:'rfStake',t:'tStake'};
+if(map[type]) document.getElementById(map[type]).value = val.toFixed(2);
+updatePayouts();
+}
+function updatePayouts(){
+const stake = parseFloat(document.getElementById('ouStake').value)||1;
+const d = state.selectedDigit;
+const overCount = 9-d;
+const underCount = d;
+const overPayout = overCount>0 ? (stake*(10/overCount)).toFixed(2) : '0.00';
+const underPayout = underCount>0 ? (stake*(10/underCount)).toFixed(2) : '0.00';
+const overWin = overCount>0 ? ((stake*(10/overCount))-stake).toFixed(2) : '0.00';
+const underWin = underCount>0 ? ((stake*(10/underCount))-stake).toFixed(2) : '0.00';
+document.getElementById('ouOverPayout').textContent = overPayout;
+document.getElementById('ouUnderPayout').textContent = underPayout;
+document.getElementById('ouStakeDisplay').textContent = stake.toFixed(2);
+document.getElementById('ouOverWin').textContent = overWin;
+document.getElementById('ouUnderWin').textContent = underWin;
+const eoStake = parseFloat(document.getElementById('eoStake').value)||1;
+document.getElementById('eoPayout').textContent = (eoStake*1.95).toFixed(2);
+document.getElementById('eoStakeDisplay').textContent = eoStake.toFixed(2);
+document.getElementById('eoWin').textContent = (eoStake*0.95).toFixed(2);
+}
+function placeTrade(contract){
+const stakeMap = {
+over:'ouStake',under:'ouStake',
+even:'eoStake',odd:'eoStake',
+matches:'mdStake',differs:'mdStake',
+rise:'rfStake',fall:'rfStake',
+touch:'tStake',notouch:'tStake',
+};
+const stakeId = stakeMap[contract]||'ouStake';
+const stake = parseFloat(document.getElementById(stakeId).value)||1;
+// Simulate result
+const win = Math.random() > 0.45;
+const payout = win ? parseFloat((stake*1.85).toFixed(2)) : 0;
+const pl = win ? parseFloat((payout-stake).toFixed(2)) : -stake;
+const trade = {
+id: state.tradeHistory.length+1,
+time: new Date().toLocaleTimeString(),
+market: state.market,
+type: state.tradeType,
+contract: contract,
+stake: stake,
+payout: payout,
+pl: pl,
+result: win?'win':'loss',
+};
+state.tradeHistory.unshift(trade);
+state.allHistory.unshift(trade);
+if(win){
+state.balance += pl;
+} else {
+state.balance -= stake;
+}
+updateBalanceUI();
+renderHistory(state.tradeHistory);
+showToast(win, contract, pl, stake);
+}
+function showToast(win, contract, pl, stake){
+const toast = document.getElementById('toast');
+const msg = document.getElementById('toastMsg');
+toast.className = 'toast '+(win?'win':'loss');
+msg.textContent = win
+? `✓ ${contract.toUpperCase()} — Won $${Math.abs(pl).toFixed(2)}`
+: `✗ ${contract.toUpperCase()} — Lost $${stake.toFixed(2)}`;
+toast.classList.add('show');
+setTimeout(()=>toast.classList.remove('show'),3000);
+}
+function updateBalanceUI(){
+const wins = state.allHistory.filter(t=>t.result==='win').length;
+const losses = state.allHistory.filter(t=>t.result==='loss').length;
+const total = wins+losses;
+const netPL = state.allHistory.reduce((a,t)=>a+t.pl,0);
+const wr = total>0?((wins/total)*100).toFixed(1)+'%':'0%';
+document.getElementById('balanceMain').innerHTML =
+state.balance.toFixed(2)+' <small style="font-size:.9rem">USD</small>';
+document.getElementById('navBalance').textContent =
+state.balance.toFixed(2)+' USD';
+document.getElementById('todayPL').textContent =
+(netPL>=0?'+':'')+netPL.toFixed(2);
+document.getElementById('todayPL').className =
+'bstat-val '+(netPL>=0?'up':'dn');
+document.getElementById('winRate').textContent = wr;
+document.getElementById('totalTrades').textContent = total;
+document.getElementById('histWins').textContent = wins;
+document.getElementById('histLosses').textContent = losses;
+document.getElementById('histNetPL').textContent =
+(netPL>=0?'+':'')+netPL.toFixed(2);
+document.getElementById('histNetPL').className =
+'bstat-val '+(netPL>=0?'up':'dn');
+document.getElementById('histWinRate').textContent = wr;
+}
+</script>
+<script>
+// ══ HISTORY ═══════════════════════════════════════════════════════
+function renderHistory(data){
+const tbody = document.getElementById('historyBody');
+if(!data.length){
+tbody.innerHTML='<tr><td colspan="9" class="empty-row">No trades yet.</td></tr>';
+return;
+}
+tbody.innerHTML = data.map(t=>`
+<tr>
+<td>${t.id}</td>
+<td>${t.time}</td>
+<td>${t.market}</td>
+<td>${t.type}</td>
+<td>${t.contract}</td>
+<td>$${t.stake.toFixed(2)}</td>
+<td>$${t.payout.toFixed(2)}</td>
+<td style="color:${t.pl>=0?'var(--accent)':'var(--accent2)'};font-weight:700">
+${t.pl>=0?'+':''}${t.pl.toFixed(2)}
+</td>
+<td><span class="badge badge-${t.result}">${t.result}</span></td>
+</tr>`).join('');
+}
+function filterHistory(type){
+if(type==='all') renderHistory(state.allHistory);
+else renderHistory(state.allHistory.filter(t=>t.result===type));
+}
+function clearHistory(){
+state.tradeHistory=[];
+state.allHistory=[];
+renderHistory([]);
+updateBalanceUI();
+}
+// ══ BOT LOGIC ═════════════════════════════════════════════════════
+function setStrategy(s, btn){
+state.strategy = s;
+document.querySelectorAll('.strat-tab').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+document.getElementById('stratDesc').textContent = STRAT_DESC[s];
+}
+function getNextStake(win){
+const base = parseFloat(document.getElementById('botStake').value)||1;
+const mult = parseFloat(document.getElementById('botMultiplier').value)||2;
+const maxS = parseFloat(document.getElementById('botMaxStake').value)||50;
+switch(state.strategy){
+case 'martingale':
+if(win){ state.botCurrentStake=base; }
+else { state.botCurrentStake=Math.min(state.botCurrentStake*mult,maxS); }
+break;
+case 'antimartingale':
+if(win){ state.botCurrentStake=Math.min(state.botCurrentStake*mult,maxS); }
+else { state.botCurrentStake=base; }
+break;
+case 'dalembert':
+if(win){ state.dalembertStake=Math.max(base,state.dalembertStake-base); }
+else { state.dalembertStake=Math.min(state.dalembertStake+base,maxS); }
+state.botCurrentStake=state.dalembertStake;
+break;
+case 'oscar':
+if(win){
+state.oscarProfit+=state.oscarStake;
+if(state.oscarProfit<base){
+state.oscarStake=Math.min(state.oscarStake+base,maxS);
+} else {
+state.oscarStake=base;
+state.oscarProfit=0;
+}
+}
+state.botCurrentStake=state.oscarStake;
+break;
+case 'fibonacci':
+if(win){
+state.fibIndex=Math.max(0,state.fibIndex-2);
+} else {
+state.fibIndex++;
+while(state.fibSequence.length<=state.fibIndex){
+const l=state.fibSequence.length;
+state.fibSequence.push(
+state.fibSequence[l-1]+state.fibSequence[l-2]
+);
+}
+}
+state.botCurrentStake=Math.min(
+state.fibSequence[state.fibIndex]*base, maxS
+);
+break;
+}
+return state.botCurrentStake;
+}
+function botTick(){
+const tp = parseFloat(document.getElementById('botTP').value)||10;
+const sl = parseFloat(document.getElementById('botSL').value)||20;
+const maxLoss = parseInt(document.getElementById('botMaxLoss').value)||5;
+// Stop conditions
+if(state.botPL >= tp){
+showToast(true,'BOT',state.botPL,0);
+stopBot('✓ Take Profit reached: +$'+state.botPL.toFixed(2));
+return;
+}
+if(state.botPL <= -sl){
+showToast(false,'BOT',state.botPL,0);
+stopBot('✗ Stop Loss reached: -$'+Math.abs(state.botPL).toFixed(2));
+return;
+}
+if(state.botConsecLoss >= maxLoss){
+stopBot('⚠ Max consecutive losses ('+maxLoss+') reached');
+return;
+}
+const stake = state.botCurrentStake;
+const win = Math.random() > 0.45;
+const payout = win ? parseFloat((stake*1.85).toFixed(2)) : 0;
+const pl = win ? parseFloat((payout-stake).toFixed(2)) : -stake;
+state.botRounds++;
+state.botPL = parseFloat((state.botPL+pl).toFixed(2));
+state.balance = parseFloat((state.balance+pl).toFixed(2));
+if(win){ state.botConsecLoss=0; }
+else { state.botConsecLoss++; }
+getNextStake(win);
+const contract = document.getElementById('botContract').value;
+const trade = {
+id: state.allHistory.length+1,
+time: new Date().toLocaleTimeString(),
+market: state.market,
+type: 'bot',
+contract: contract,
+stake: stake,
+payout: payout,
+pl: pl,
+result: win?'win':'loss',
+};
+state.allHistory.unshift(trade);
+state.tradeHistory.unshift(trade);
+updateBotUI();
+updateBalanceUI();
+renderHistory(state.tradeHistory.slice(0,50));
+}
+function updateBotUI(){
+document.getElementById('botCurrentStake').textContent=
+'$'+state.botCurrentStake.toFixed(2);
+document.getElementById('botRounds').textContent=state.botRounds;
+const pl=state.botPL;
+document.getElementById('botPL').textContent=(pl>=0?'+':'')+pl.toFixed(2);
+document.getElementById('botPL').className='bot-stat-val '+(pl>=0?'up':'dn');
+document.getElementById('botConsecLoss').textContent=state.botConsecLoss;
+// Progress vs TP
+const tp=parseFloat(document.getElementById('botTP').value)||10;
+const sl=parseFloat(document.getElementById('botSL').value)||20;
+const total=tp+sl;
+const pos=Math.min(Math.max((pl+sl)/total,0),1)*100;
+document.getElementById('botProgress').style.width=pos+'%';
+}
+function toggleBot(){
+if(state.botRunning){ stopBot('Stopped by user'); }
+else { startBot(); }
+}
+function startBot(){
+state.botRunning=true;
+state.botCurrentStake=parseFloat(document.getElementById('botStake').value)||1;
+document.getElementById('botStartBtn').textContent='⏸ Pause Bot';
+document.getElementById('botStatusDot').className='status-dot running';
+document.getElementById('botStatusText').textContent='Bot is running...';
+const speed = state.market.includes('1S') ? 800 : 1200;
+state.botInterval=setInterval(botTick, speed);
+}
+function stopBot(reason){
+state.botRunning=false;
+clearInterval(state.botInterval);
+document.getElementById('botStartBtn').textContent='▶ Start Bot';
+document.getElementById('botStatusDot').className='status-dot stopped';
+document.getElementById('botStatusText').textContent=reason||'Stopped';
+}
+function resetBot(){
+stopBot('Bot reset');
+state.botRounds=0;
+state.botPL=0;
+state.botConsecLoss=0;
+state.botCurrentStake=parseFloat(document.getElementById('botStake').value)||1;
+state.fibSequence=[1,1];
+state.fibIndex=0;
+state.dalembertStake=parseFloat(document.getElementById('botStake').value)||1;
+state.oscarStake=parseFloat(document.getElementById('botStake').value)||1;
+state.oscarProfit=0;
+updateBotUI();
+document.getElementById('botStatusDot').className='status-dot';
+document.getElementById('botStatusText').textContent='Bot is not running';
+}
+</script>
+<script>
+// ══ QUICK STRATEGY ════════════════════════════════════════════════
+const QS_PRESETS = {
+Conservative:{
+strategy:'dalembert',multiplier:1.0,
+tp:5,sl:10,desc:'Low Risk'
+},
+Moderate:{
+strategy:'martingale',multiplier:1.5,
+tp:10,sl:20,desc:'Med Risk'
+},
+Aggressive:{
+strategy:'martingale',multiplier:2.0,
+tp:20,sl:30,desc:'High Risk'
+},
+Scalper:{
+strategy:'fibonacci',multiplier:1.0,
+tp:8,sl:15,desc:'Med Risk'
+},
+};
+function selectQS(el, name){
+document.querySelectorAll('.qs-card').forEach(c=>c.classList.remove('active'));
+el.classList.add('active');
+document.getElementById('qsActiveName').textContent = name;
+const p = QS_PRESETS[name];
+document.getElementById('qsTP').value = p.tp;
+document.getElementById('qsSL').value = p.sl;
+updateRiskMeter(name);
+}
+function updateRiskMeter(name){
+const levels = {Conservative:15,Moderate:45,Aggressive:85,Scalper:50};
+const labels = {Conservative:'Low',Moderate:'Medium',Aggressive:'High',Scalper:'Medium'};
+const w = levels[name]||15;
+document.getElementById('riskBar').style.width = w+'%';
+document.getElementById('riskLabel').textContent = labels[name]||'Low';
+}
+function applyQS(){
+const name = document.getElementById('qsActiveName').textContent;
+const p = QS_PRESETS[name];
+if(!p) return;
+const base = parseFloat(document.getElementById('qsBaseStake').value)||1;
+const dur = document.getElementById('qsDuration').value;
+// Apply to bot panel
+document.getElementById('botStake').value = base.toFixed(2);
+document.getElementById('botMultiplier').value = p.multiplier.toFixed(1);
+document.getElementById('botTP').value = p.tp;
+document.getElementById('botSL').value = p.sl;
+// Set strategy tab
+const stratMap = {
+martingale:0, antimartingale:1,
+dalembert:2, oscar:3, fibonacci:4
+};
+const tabs = document.querySelectorAll('.strat-tab');
+tabs.forEach(t=>t.classList.remove('active'));
+const idx = stratMap[p.strategy];
+if(tabs[idx]){
+tabs[idx].classList.add('active');
+state.strategy = p.strategy;
+document.getElementById('stratDesc').textContent = STRAT_DESC[p.strategy];
+}
+showToast(true,'QS',0,0);
+document.getElementById('toastMsg').textContent =
+'✓ '+name+' strategy applied to Bot';
+}
+// ══ INPUTS LIVE UPDATE ════════════════════════════════════════════
+document.getElementById('ouStake').addEventListener('input', updatePayouts);
+document.getElementById('eoStake').addEventListener('input', updatePayouts);
+// ══ INIT ══════════════════════════════════════════════════════════
+function init(){
+// Init strategy desc
+document.getElementById('stratDesc').textContent = STRAT_DESC['martingale'];
+// Init digit grids
+updateDigitGrid();
+updateLDP();
+updatePayouts();
+updateRiskMeter('Conservative');
+// Init chart
+setTimeout(()=>{
+initChart();
+// Seed chart data
+for(let i=0;i<50;i++){
+const vol = VOLATILITY[state.market]||0.25;
+state.price += (Math.random()-0.5)*2*vol;
+state.chartData.push(state.price);
+}
+updateChart();
+}, 100);
+// Start price simulation
+setInterval(simulatePrice, 1000);
+// Input listeners for stake presets
+document.getElementById('ouStake').addEventListener('input',updatePayouts);
+}
+window.addEventListener('load', init);
+window.addEventListener('resize',()=>{
+initChart();
+updateChart();
+});
+</script>
+<script src="deriv.js"></script>
+<script src="deriv-ui.js"></script>
+<script src="strategy-fix1.js"></script>
+<script src="strategy-fix2.js"></script>
+</body>
+</html>
+<script src="deriv.js"></script>
+<script src="deriv-ui.js"></script>
+<script>
+// ══ DERIV INIT ════════════════════════════════════════════════════
+function initDeriv(){
+parseOAuthParams();
+// Check OAuth callback
+const token = checkOAuthCallback();
+// Start WebSocket
+window.derivWS = new DerivWS();
+window.derivWS.connect();
+// Add trade mode toggle to state
+state.botMode = 'real';
+// Override placeTrade to use real WS
+const _placeTrade = placeTrade;
+window.placeTrade = function(contract){
+if(window.derivWS && window.derivWS.token){
+placeRealTrade(contract);
+} else {
+_placeTrade(contract);
+}
+};
+// Override onMarketChange to re-subscribe
+const _onMarketChange = onMarketChange;
+window.onMarketChange = function(){
+_onMarketChange();
+if(window.derivWS && window.derivWS.connected){
+const symbol = SYMBOL_MAP[state.market]||'R_100';
+window.derivWS.subscribeTicks(symbol);
+}
+};
+}
+window.addEventListener('load', function(){
+setTimeout(initDeriv, 500);
+});
+</script>
+<script src="strategy-fix1.js"></script>
+<script src="strategy-fix2.js"></script>
+</body>
+</html>
+
+
+<script>
+// ══ ACCURATE PRICE SIMULATION ════════════════════════════════════
+// Override simulatePrice with statistically correct version
+// Real Deriv digits follow near-uniform distribution 8%-12%
+function simulatePrice(){
+if(window.derivWS && window.derivWS.token) return; // use real ticks only
+const vol = VOLATILITY[state.market]||0.25;
+// Use realistic Brownian motion
+const change = (Math.random()-0.5)*2*vol;
+state.prevPrice = state.price;
+state.price = Math.max(10, state.price + change);
+// Extract last digit from price string (not floor*10)
+// This gives true uniform distribution like real Deriv
+const priceStr = state.price.toFixed(2);
+state.lastDigit = parseInt(priceStr[priceStr.length-1]);
+state.tickCount++;
+state.chartData.push(state.price);
+if(state.chartData.length>500) state.chartData.shift();
+updateDigitCounts(state.lastDigit);
+updatePriceUI();
+updateChart();
+updateLDP();
+updateTickLog();
+updateTagTick();
+updateLDPLabel();
+}
+// Also update onTick to call label update
+const _onTick = onTick;
+function onTick(tick){
+if(!tick) return;
+state.prevPrice = state.price;
+state.price = tick.quote;
+// Extract last digit from actual price string
+const priceStr = tick.quote.toFixed(2);
+state.lastDigit = parseInt(priceStr[priceStr.length-1]);
+state.tickCount++;
+state.chartData.push(state.price);
+if(state.chartData.length>500) state.chartData.shift();
+updateDigitCounts(state.lastDigit);
+updatePriceUI();
+updateChart();
+updateLDP();
+updateTickLog();
+updateTagTick();
+updateLDPLabel();
+}
+</script>
+<link rel="stylesheet" href="ldp-styles.css"/>
+<script src="ldp-data.js"></script>
+<script src="ldp-ui.js"></script>
+<script src="ldp-engine.js"></script>
+
+<script>
+// ══ INJECT LDP CIRCLE GRID INTO LDP PANEL ════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+// ── Replace old ldpGrid with circle grid ──────────────────────
+const ldpPanel = document.querySelector('.card-title .dot')
+?.closest('.card');
+// Find LDP card by its title text
+document.querySelectorAll('.card-title').forEach(el => {
+if(el.textContent.includes('Last Digit Probability')){
+const card = el.closest('.card');
+// Insert circle grid after title
+const circleSection = document.createElement('div');
+circleSection.innerHTML = `
+<div id="ldpStatusBadge" class="ldp-badge ldp-badge-warn">
+⏳ Collecting data...
+</div>
+<div class="ldp-circle-grid" id="ldpCircleGrid"></div>
+<div style="display:flex;justify-content:space-between;
+font-size:.65rem;color:var(--text2);margin-bottom:12px">
+<span>0%</span>
+<span id="ldpSampleSize">Last 0 / 100 ticks</span>
+<span>20%</span>
+</div>`;
+// Insert before old ldpGrid
+const oldGrid = card.querySelector('#ldpGrid');
+if(oldGrid) card.insertBefore(circleSection, oldGrid);
+else el.after(circleSection);
+}
+});
+// ── Replace bot log with LDP engine log ───────────────────────
+document.querySelectorAll('.card-title').forEach(el => {
+if(el.textContent.includes('Bot / Martingale')){
+const card = el.closest('.card');
+// Add win rate stat
+const botGrid = card.querySelector('.bot-grid');
+if(botGrid){
+botGrid.innerHTML += `
+<div class="bot-stat">
+<div class="bot-stat-label">Win Rate</div>
+<div class="bot-stat-val up" id="botWinRate">0%</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Wins / Losses</div>
+<div class="bot-stat-val" id="botWinLoss">0 / 0</div>
+</div>`;
+}
+// Add LDP engine log
+const statusDiv = card.querySelector('.bot-status');
+if(statusDiv){
+const logSection = document.createElement('div');
+logSection.innerHTML = `
+<div class="card-title" style="margin-top:14px;margin-bottom:8px">
+<span class="dot"></span>Engine Log
+<span style="margin-left:auto">
+<button class="stake-preset"
+onclick="LDPEngine.addLog('info','Log cleared');
+document.getElementById('ldpEngineLog').innerHTML=''">
+Clear
+</button>
+</span>
+</div>
+<div class="ldp-log" id="ldpEngineLog">
+<div style="color:var(--text3);font-size:.7rem;text-align:center;
+padding:20px 0">Engine log will appear here when bot starts...</div>
+</div>`;
+statusDiv.after(logSection);
+}
+}
+});
+// ── Init LDP circle grid ──────────────────────────────────────
+LDPUi.render(state.selectedDigit);
+// ── Override toggleBot to use LDPEngine ───────────────────────
+window.toggleBot = function(){ LDPEngine.toggle(); }
+window.resetBot = function(){ LDPEngine.reset(); }
+// ── Override simulatePrice to feed LDPData ────────────────────
+const _origSim = window.simulatePrice;
+window.simulatePrice = function(){
+_origSim && _origSim();
+LDPData.push(state.lastDigit);
+LDPUi.render(state.selectedDigit);
+LDPUi.flashDigit(state.lastDigit);
+};
+// ── Override onTick to feed LDPData ──────────────────────────
+const _origTick = window.onTick;
+window.onTick = function(tick){
+_origTick && _origTick(tick);
+LDPData.push(state.lastDigit);
+LDPUi.render(state.selectedDigit);
+LDPUi.flashDigit(state.lastDigit);
+};
+// ── Wire LDPUi.selectDigit to trade panel ─────────────────────
+window.selectDigit = function(d, el){
+state.selectedDigit = d;
+LDPUi.selectDigit(d);
+document.querySelectorAll('#digitGrid .digit-btn')
+.forEach(b => b.classList.remove('active'));
+if(el) el.classList.add('active');
+updatePayouts();
+};
+});
+</script>
+
+<script>
+// Inject scroll tabs right after navbar
+document.addEventListener('DOMContentLoaded', function(){
+const tabsHTML = `
+<div class="scroll-tabs-wrap" id="scrollTabsWrap">
+<div class="scroll-tabs-fade-left" id="fadeLeft"></div>
+<div class="scroll-tabs-fade-right" id="fadeRight"></div>
+<div class="scroll-tabs-bar" id="scrollTabsBar">
+<button class="stab stab-active" onclick="switchTab('bots',this)"
+id="tab-bots">
+<span class="stab-dot"></span>
+<span class="stab-icon">🤖</span>
+Trading Bots
+</button>
+<button class="stab" onclick="switchTab('analysis',this)"
+id="tab-analysis">
+<span class="stab-icon">📊</span>
+Analysis Tool
+</button>
+<button class="stab" onclick="switchTab('strategies',this)"
+id="tab-strategies">
+<span class="stab-icon">🧠</span>
+Strategies
+</button>
+<button class="stab" onclick="switchTab('ai',this)"
+id="tab-ai">
+<span class="stab-icon">✨</span>
+AI Strategy
+</button>
+<button class="stab" onclick="switchTab('compete',this)"
+id="tab-compete">
+<span class="stab-icon">🏆</span>
+Competition
+</button>
+<button class="stab" onclick="switchTab('manual',this)"
+id="tab-manual">
+<span class="stab-icon">🎯</span>
+Manual Trading
+</button>
+<button class="stab" onclick="switchTab('chart',this)"
+id="tab-chart">
+<span class="stab-icon">📈</span>
+Chart
+</button>
+<button class="stab" onclick="switchTab('advanced',this)"
+id="tab-advanced">
+<span class="stab-icon">⚡</span>
+Advanced Strategy
+</button>
+</div>
+</div>`;
+// Insert right after navbar
+const navbar = document.querySelector('.navbar');
+if(navbar){
+navbar.insertAdjacentHTML('afterend', tabsHTML);
+}
+// Init scroll shadow listeners
+const bar = document.getElementById('scrollTabsBar');
+if(bar){
+bar.addEventListener('scroll', updateFades, {passive:true});
+updateFades();
+}
+});
+</script>
+<script>
+// ══ TAB SWITCH LOGIC ══════════════════════════════════════════════
+function switchTab(id, btn){
+// ── Update tab buttons ────────────────────────────────────────
+document.querySelectorAll('.stab').forEach(b => {
+b.classList.remove('stab-active');
+// Remove dot from all
+const dot = b.querySelector('.stab-dot');
+if(dot) dot.remove();
+});
+// Add active + dot to clicked
+btn.classList.add('stab-active');
+const dot = document.createElement('span');
+dot.className = 'stab-dot';
+btn.insertBefore(dot, btn.firstChild);
+// ── Scroll tab into center view ───────────────────────────────
+btn.scrollIntoView({
+behavior:'smooth',
+block:'nearest',
+inline:'center'
+});
+// ── Show correct section ──────────────────────────────────────
+document.querySelectorAll('.tab-section').forEach(s => {
+s.classList.remove('tab-active');
+});
+const section = document.getElementById('section-'+id);
+if(section) section.classList.add('tab-active');
+// ── Update fades ──────────────────────────────────────────────
+updateFades();
+// ── Log ───────────────────────────────────────────────────────
+console.log('[Tabs] Switched to:', id);
+}
+// ══ FADE SHADOW UPDATER ════════════════════════════════════════════
+function updateFades(){
+const bar = document.getElementById('scrollTabsBar');
+const left = document.getElementById('fadeLeft');
+const right = document.getElementById('fadeRight');
+if(!bar||!left||!right) return;
+left.style.opacity = bar.scrollLeft > 8 ? '1' : '0';
+right.style.opacity = bar.scrollLeft < bar.scrollWidth
+- bar.clientWidth - 8 ? '1' : '0';
+}
+// ══ WRAP PAGE SECTIONS ON LOAD ════════════════════════════════════
+document.addEventListener('DOMContentLoaded', function(){
+setTimeout(function(){
+const page = document.querySelector('.page');
+if(!page) return;
+// Get all direct child rows/cards of .page
+const children = Array.from(page.children);
+// ── Create sections ──────────────────────────────────────────
+const sections = {
+bots: [],
+analysis: [],
+strategies:[],
+ai: [],
+compete: [],
+manual: [],
+chart: [],
+advanced: [],
+};
+// Assign existing content to tabs
+children.forEach((el, i) => {
+if(i === 0) sections.bots.push(el); // Balance + Market
+else if(i === 1) sections.chart.push(el); // Price Chart
+else if(i === 2) sections.manual.push(el);// Trade + LDP
+else if(i === 3) sections.bots.push(el); // Bot + Quick Strategy
+else if(i === 4) sections.analysis.push(el); // Trade History
+else sections.bots.push(el);
+});
+// ── Build section wrappers ────────────────────────────────────
+Object.keys(sections).forEach(id => {
+const wrap = document.createElement('div');
+wrap.className = 'tab-section' + (id==='bots' ? ' tab-active' : '');
+wrap.id = 'section-' + id;
+// Add coming soon for empty sections
+if(!sections[id].length){
+wrap.innerHTML = `
+<div style="
+display:flex;flex-direction:column;
+align-items:center;justify-content:center;
+min-height:300px;gap:16px;
+color:var(--text2);
+">
+<div style="font-size:3rem">${getTabIcon(id)}</div>
+<div style="font-size:1.2rem;font-weight:700;
+color:var(--text)">
+${getTabName(id)}
+</div>
+<div style="font-size:.85rem;color:var(--text3)">
+Coming soon...
+</div>
+</div>`;
+} else {
+sections[id].forEach(el => wrap.appendChild(el));
+}
+page.appendChild(wrap);
+});
+}, 200);
+});
+function getTabIcon(id){
+const map = {
+bots:'🤖', analysis:'📊', strategies:'🧠',
+ai:'✨', compete:'🏆', manual:'🎯',
+chart:'📈', advanced:'⚡'
+};
+return map[id] || '🔧';
+}
+function getTabName(id){
+const map = {
+bots:'Trading Bots', analysis:'Analysis Tool',
+strategies:'Strategies', ai:'AI Strategy',
+compete:'Competition', manual:'Manual Trading',
+chart:'Chart', advanced:'Advanced Strategy'
+};
+return map[id] || id;
+}
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+// ── Build sticky history bar ───────────────────────────────────
+const historyBar = document.createElement('div');
+historyBar.className = 'history-sticky-wrap';
+historyBar.id = 'stickyHistory';
+historyBar.innerHTML = `
+<div class="history-toggle-bar" onclick="toggleStickyHistory()">
+<div class="history-toggle-title">
+<span class="live-dot"></span>
+Trade History
+<span style="
+background:#00e5a020;color:var(--accent);
+font-size:.65rem;padding:2px 8px;
+border-radius:20px;font-weight:700;
+font-family:'DM Mono',monospace;
+" id="stickyHistoryCount">0 trades</span>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<div style="display:flex;gap:8px;font-size:.72rem">
+<span style="color:var(--accent)" id="stickyWins">W:0</span>
+<span style="color:var(--accent2)" id="stickyLosses">L:0</span>
+<span id="stickyPL" style="font-family:'DM Mono',monospace;
+font-weight:700;color:var(--accent)">+0.00</span>
+</div>
+<span class="history-toggle-arrow">▲</span>
+</div>
+</div>
+<div class="history-sticky-body" id="stickyHistoryBody">
+<!-- Filter row -->
+<div style="display:flex;gap:6px;padding:10px 0 8px;
+position:sticky;top:0;background:var(--bg2);z-index:2">
+<button class="stake-preset sfilter-active"
+onclick="stickyFilter('all',this)">All</button>
+<button class="stake-preset"
+onclick="stickyFilter('win',this)">Wins</button>
+<button class="stake-preset"
+onclick="stickyFilter('loss',this)">Losses</button>
+<button class="stake-preset"
+onclick="stickyFilter('bot',this)">Bot</button>
+<button class="stake-preset"
+onclick="stickyFilter('manual',this)">Manual</button>
+<button class="stake-preset" style="margin-left:auto"
+onclick="clearHistory()">Clear</button>
+</div>
+<!-- Table -->
+<div style="overflow-x:auto">
+<table class="history-table" id="stickyHistoryTable">
+<thead>
+<tr>
+<th>#</th>
+<th>Time</th>
+<th>Market</th>
+<th>Type</th>
+<th>Contract</th>
+<th>Stake</th>
+<th>Payout</th>
+<th>P/L</th>
+<th>Result</th>
+</tr>
+</thead>
+<tbody id="stickyHistoryBody">
+<tr>
+<td colspan="9" class="empty-row">
+No trades yet.
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>`;
+document.body.appendChild(historyBar);
+// ── Sticky filter active style ─────────────────────────────────
+const style = document.createElement('style');
+style.textContent = `
+.sfilter-active{
+border-color:var(--accent) !important;
+color:var(--accent) !important;
+}`;
+document.head.appendChild(style);
+});
+// ══ TOGGLE EXPAND/COLLAPSE ════════════════════════════════════════
+function toggleStickyHistory(){
+const wrap = document.getElementById('stickyHistory');
+if(!wrap) return;
+wrap.classList.toggle('expanded');
+// Update page padding
+const page = document.querySelector('.page');
+if(page){
+page.style.paddingBottom =
+wrap.classList.contains('expanded') ? '330px' : '60px';
+}
+}
+// ══ FILTER ════════════════════════════════════════════════════════
+let currentStickyFilter = 'all';
+function stickyFilter(type, btn){
+currentStickyFilter = type;
+document.querySelectorAll('.stake-preset').forEach(b =>
+b.classList.remove('sfilter-active')
+);
+btn.classList.add('sfilter-active');
+renderStickyHistory();
+}
+// ══ RENDER STICKY HISTORY ════════════════════════════════════════
+function renderStickyHistory(){
+const tbody = document.getElementById('stickyHistoryBody');
+const countEl = document.getElementById('stickyHistoryCount');
+const winsEl = document.getElementById('stickyWins');
+const lossEl = document.getElementById('stickyLosses');
+const plEl = document.getElementById('stickyPL');
+if(!tbody) return;
+// Filter data
+let data = state.allHistory || [];
+if(currentStickyFilter === 'win')
+data = data.filter(t => t.result === 'win');
+else if(currentStickyFilter === 'loss')
+data = data.filter(t => t.result === 'loss');
+else if(currentStickyFilter === 'bot')
+data = data.filter(t => t.type === 'bot' || t.type === 'ldp-bot');
+else if(currentStickyFilter === 'manual')
+data = data.filter(t =>
+t.type !== 'bot' && t.type !== 'ldp-bot'
+);
+// Stats from ALL history
+const all = state.allHistory || [];
+const wins = all.filter(t => t.result === 'win').length;
+const losses = all.filter(t => t.result === 'loss').length;
+const netPL = all.reduce((a, t) => a + t.pl, 0);
+// Update header stats
+if(countEl) countEl.textContent = all.length + ' trades';
+if(winsEl) winsEl.textContent = 'W:' + wins;
+if(lossEl) lossEl.textContent = 'L:' + losses;
+if(plEl){
+plEl.textContent = (netPL >= 0 ? '+' : '') + netPL.toFixed(2);
+plEl.style.color = netPL >= 0
+? 'var(--accent)' : 'var(--accent2)';
+}
+// Render rows
+if(!data.length){
+tbody.innerHTML = `
+<tr>
+<td colspan="9" class="empty-row">No trades yet.</td>
+</tr>`;
+return;
+}
+tbody.innerHTML = data.slice(0, 100).map(t => `
+<tr>
+<td>${t.id}</td>
+<td>${t.time}</td>
+<td>${t.market}</td>
+<td>${t.type}</td>
+<td>${t.contract}</td>
+<td>$${t.stake.toFixed(2)}</td>
+<td>$${t.payout.toFixed(2)}</td>
+<td style="color:${t.pl>=0?'var(--accent)':'var(--accent2)'};
+font-weight:700">
+${t.pl>=0?'+':''}${t.pl.toFixed(2)}
+</td>
+<td>
+<span class="badge badge-${t.result}">
+${t.result}
+</span>
+</td>
+</tr>`).join('');
+}
+// ══ HOOK INTO EXISTING renderHistory ══════════════════════════════
+const _origRenderHistory = window.renderHistory;
+window.renderHistory = function(data){
+_origRenderHistory && _origRenderHistory(data);
+renderStickyHistory();
+};
+// ══ HOOK INTO placeTrade ══════════════════════════════════════════
+const _origPlaceTrade = window.placeTrade;
+window.placeTrade = function(contract){
+_origPlaceTrade && _origPlaceTrade(contract);
+setTimeout(renderStickyHistory, 100);
+};
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+setTimeout(function(){
+const page = document.querySelector('.page');
+if(!page) return;
+// Remove old section wrappers if any
+document.querySelectorAll('.tab-section').forEach(s => {
+// Move children back to page
+while(s.firstChild) page.appendChild(s.firstChild);
+s.remove();
+});
+// Get all direct children fresh
+const children = Array.from(page.children);
+// Define section map
+const map = {
+bots: [],
+analysis: [],
+strategies:[],
+ai: [],
+compete: [],
+manual: [],
+chart: [],
+advanced: [],
+};
+// Assign content to correct tabs
+children.forEach((el, i) => {
+if(i === 0) map.manual.push(el); // Balance + Market → Manual
+else if(i === 1) map.chart.push(el); // Price Chart → Chart
+else if(i === 2) map.manual.push(el); // Trade Panel + LDP → Manual
+else if(i === 3) map.analysis.push(el);// Bot Panel → Analysis
+else if(i === 4) map.analysis.push(el);// Trade History → Analysis
+else map.analysis.push(el);
+});
+// Build and inject sections
+Object.keys(map).forEach(id => {
+const wrap = document.createElement('div');
+wrap.className = 'tab-section' + (id==='bots' ? ' tab-active' : '');
+wrap.id = 'section-' + id;
+if(!map[id].length){
+wrap.innerHTML = `
+<div style="
+display:flex;flex-direction:column;
+align-items:center;justify-content:center;
+min-height:60vh;gap:16px;
+color:var(--text2);
+">
+<div style="font-size:3.5rem">${getTabIcon(id)}</div>
+<div style="font-size:1.3rem;font-weight:800;
+color:var(--text)">
+${getTabName(id)}
+</div>
+<div style="
+font-size:.85rem;color:var(--text3);
+background:var(--bg2);border:1px solid var(--border);
+padding:10px 20px;border-radius:20px;
+">
+Coming soon...
+</div>
+</div>`;
+} else {
+map[id].forEach(el => wrap.appendChild(el));
+}
+page.appendChild(wrap);
+});
+// Make sure bots tab is active by default
+switchTab('bots', document.getElementById('tab-bots'));
+}, 300);
+});
+</script>
+
+
+<script>
+// ══ STRATEGY MANAGER ══════════════════════════════════════════════
+const StratManager = (() => {
+let strategies = [];
+let idCounter = 0;
+const TYPES = {
+evenodd: 'Even/Odd LDP',
+overunder:'Over/Under',
+matches: 'Matches/Differs',
+risfall: 'Rise/Fall',
+};
+const ALGOS = {
+martingale: 'Martingale',
+antimartingale:'Anti-Martingale',
+dalembert: "D'Alembert",
+fibonacci: 'Fibonacci',
+fixed: 'Fixed Stake',
+};
+// ── Tick history per strategy ─────────────────────────────────
+const tickHistories = {};
+// ── Create new strategy ───────────────────────────────────────
+function add() {
+idCounter++;
+const id = idCounter;
+const s = {
+id,
+name: 'Strategy #' + id,
+type: 'evenodd',
+algo: 'martingale',
+active: true,
+open: true,
+// Logic
+ifLast: 3,
+ifType: 'odd',
+tradeOn: 'even',
+// Digits (for over/under/matches)
+digits: [5],
+// Recovery
+baseStake: 1.00,
+multiplier:2.0,
+recovery: 8,
+// Stop conditions
+stopTrades:0,
+stopWins: 1,
+stopLosses:0,
+stopLoss: 10,
+takeProfit:20,
+// Runtime
+running: false,
+interval: null,
+rounds: 0,
+wins: 0,
+losses: 0,
+pl: 0,
+currentStake:1.00,
+consecLoss:0,
+};
+strategies.push(s);
+tickHistories[id] = [];
+render();
+// Scroll to new strategy
+setTimeout(() => {
+const el = document.getElementById('sitem-'+id);
+if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}, 100);
+}
+// ── Delete strategy ───────────────────────────────────────────
+function remove(id) {
+const s = strategies.find(x => x.id === id);
+if(s && s.running) stopStrategy(id);
+strategies = strategies.filter(x => x.id !== id);
+delete tickHistories[id];
+render();
+}
+// ── Toggle open/close ─────────────────────────────────────────
+function toggleOpen(id) {
+const s = strategies.find(x => x.id === id);
+if(s) s.open = !s.open;
+render();
+}
+// ── Toggle active ─────────────────────────────────────────────
+function toggleActive(id, el) {
+el.stopPropagation();
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+s.active = !s.active;
+if(!s.active && s.running) stopStrategy(id);
+render();
+}
+// ── Update field ──────────────────────────────────────────────
+function update(id, field, val) {
+const s = strategies.find(x => x.id === id);
+if(s) s[field] = val;
+}
+// ── Toggle digit selection ────────────────────────────────────
+function toggleDigit(id, d) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+const idx = s.digits.indexOf(d);
+if(idx > -1) s.digits.splice(idx, 1);
+else s.digits.push(d);
+// Re-render just digit buttons
+const wrap = document.getElementById('digits-'+id);
+if(wrap) {
+wrap.querySelectorAll('.dms-btn').forEach(btn => {
+const bd = parseInt(btn.dataset.d);
+btn.classList.toggle('dms-on', s.digits.includes(bd));
+});
+}
+}
+// ── Push tick to strategy history ────────────────────────────
+function pushTick(digit) {
+strategies.forEach(s => {
+if(!s.active) return;
+if(!tickHistories[s.id]) tickHistories[s.id] = [];
+tickHistories[s.id].push(digit);
+if(tickHistories[s.id].length > 200)
+tickHistories[s.id].shift();
+updateStratUI(s.id);
+if(s.running) checkSignal(s.id);
+});
+}
+// ── Get signal for strategy ───────────────────────────────────
+function getSignal(id) {
+const s = strategies.find(x => x.id === id);
+if(!s || !s.active) return null;
+const hist = tickHistories[id] || [];
+if(hist.length < s.ifLast) return 'wait';
+const recent = hist.slice(-s.ifLast);
+if(s.type === 'evenodd') {
+const allMatch = recent.every(d =>
+s.ifType === 'even' ? d%2===0 : d%2!==0
+);
+return allMatch ? 'enter' : 'wait';
+}
+if(s.type === 'overunder') {
+const allOver = recent.every(d => d > 5);
+const allUnder = recent.every(d => d < 5);
+if(s.ifType === 'over' && allOver) return 'enter';
+if(s.ifType === 'under' && allUnder) return 'enter';
+return 'wait';
+}
+if(s.type === 'matches') {
+const allMatch = recent.every(d => s.digits.includes(d));
+return allMatch ? 'enter' : 'wait';
+}
+if(s.type === 'risfall') {
+const prices = (state.chartData || []).slice(-s.ifLast);
+if(prices.length < s.ifLast) return 'wait';
+const allRise = prices.every((p,i) =>
+i===0 || p > prices[i-1]
+);
+const allFall = prices.every((p,i) =>
+i===0 || p < prices[i-1]
+);
+if(s.ifType === 'rise' && allRise) return 'enter';
+if(s.ifType === 'fall' && allFall) return 'enter';
+return 'wait';
+}
+return 'wait';
+}
+// ── Check signal and maybe trade ─────────────────────────────
+function checkSignal(id) {
+const s = strategies.find(x => x.id === id);
+if(!s || !s.running) return;
+// Stop conditions
+if(s.stopWins > 0 && s.wins >= s.stopWins){
+stopStrategy(id, '🎯 Win target reached');return;
+}
+if(s.stopLosses > 0 && s.losses >= s.stopLosses){
+stopStrategy(id, '🛑 Loss limit reached');return;
+}
+if(s.stopTrades > 0 && s.rounds >= s.stopTrades){
+stopStrategy(id, '🔢 Trade limit reached');return;
+}
+if(s.pl >= s.takeProfit){
+stopStrategy(id, '💰 Take Profit hit');return;
+}
+if(s.pl <= -s.stopLoss){
+stopStrategy(id, '🛑 Stop Loss hit');return;
+}
+const sig = getSignal(id);
+if(sig !== 'enter') return;
+// Execute trade
+executeTrade(id);
+}
+// ── Execute trade ─────────────────────────────────────────────
+function executeTrade(id) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+const stake = s.currentStake;
+const symbol = SYMBOL_MAP[state.market] || 'R_100';
+// Contract type
+let ctype = 'DIGITEVEN';
+if(s.type==='evenodd')
+ctype = s.tradeOn==='even' ? 'DIGITEVEN' : 'DIGITODD';
+else if(s.type==='overunder')
+ctype = s.tradeOn==='over' ? 'DIGITOVER' : 'DIGITUNDER';
+else if(s.type==='matches')
+ctype = 'DIGITMATCH';
+else if(s.type==='risfall')
+ctype = s.tradeOn==='rise' ? 'CALL' : 'PUT';
+if(window.derivWS && window.derivWS.token) {
+window.derivWS.buyContract({
+stake, symbol, contract_type: ctype,
+duration:1, duration_unit:'t',
+...(s.type==='overunder'||s.type==='matches'
+? {barrier: s.digits[0]||5} : {}),
+});
+}
+// Simulate result
+const win = Math.random() > 0.45;
+const payout= win ? stake*1.85 : 0;
+const pl = win ? payout-stake : -stake;
+s.rounds++;
+s.pl = parseFloat((s.pl+pl).toFixed(2));
+state.balance = parseFloat((state.balance+pl).toFixed(2));
+if(win){ s.wins++; s.consecLoss=0; }
+else { s.losses++; s.consecLoss++; }
+// Next stake
+s.currentStake = calcNextStake(s, win);
+// Add to history
+const trade = {
+id: (state.allHistory.length+1),
+time: new Date().toLocaleTimeString(),
+market: state.market,
+type: 'strat#'+id,
+contract: ctype.toLowerCase(),
+stake, payout, pl,
+result: win?'win':'loss',
+};
+state.allHistory.unshift(trade);
+state.tradeHistory.unshift(trade);
+updateBalanceUI();
+renderStickyHistory();
+updateStratUI(id);
+showToast(win,'STRAT',pl,stake);
+}
+// ── Next stake calculator ─────────────────────────────────────
+function calcNextStake(s, win) {
+const base = parseFloat(s.baseStake)||1;
+const mult = parseFloat(s.multiplier)||2;
+const max = 50;
+switch(s.algo) {
+case 'martingale':
+return win ? base : Math.min(s.currentStake*mult,max);
+case 'antimartingale':
+return win ? Math.min(s.currentStake*mult,max) : base;
+case 'dalembert':
+return win
+? Math.max(base,s.currentStake-base)
+: Math.min(s.currentStake+base,max);
+case 'fibonacci':
+if(!s._fib) s._fib={seq:[1,1],idx:0};
+if(win){ s._fib.idx=Math.max(0,s._fib.idx-2); }
+else {
+s._fib.idx++;
+while(s._fib.seq.length<=s._fib.idx){
+const l=s._fib.seq.length;
+s._fib.seq.push(s._fib.seq[l-1]+s._fib.seq[l-2]);
+}
+}
+return Math.min(s._fib.seq[s._fib.idx]*base,max);
+default: return base;
+}
+}
+// ── Start/Stop ────────────────────────────────────────────────
+function startStrategy(id) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+s.running = true;
+s.currentStake= parseFloat(s.baseStake)||1;
+updateStratUI(id);
+}
+function stopStrategy(id, reason) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+s.running = false;
+updateStratUI(id);
+if(reason) showToast(false,'STRAT#'+id,0,0);
+}
+function toggleRun(id) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+s.running ? stopStrategy(id,'Paused') : startStrategy(id);
+}
+// ── Update strategy UI ────────────────────────────────────────
+function updateStratUI(id) {
+const s = strategies.find(x => x.id === id);
+if(!s) return;
+const hist = tickHistories[id]||[];
+// Signal banner
+const sigEl = document.getElementById('sig-'+id);
+if(sigEl) {
+const sig = getSignal(id);
+if(sig==='enter') {
+sigEl.className='sig-banner sig-enter';
+sigEl.textContent='✅ SIGNAL — Enter '+s.tradeOn.toUpperCase();
+} else if(sig==='wait') {
+sigEl.className='sig-banner sig-neutral';
+const need = s.ifLast - (hist.length % s.ifLast || s.ifLast);
+sigEl.textContent=`⚖️ Waiting — need ${s.ifLast}x ${s.ifType.toUpperCase()}`;
+}
+}
+// EO grid
+if(s.type==='evenodd') {
+const eoEl = document.getElementById('eogrid-'+id);
+if(eoEl) {
+const last30 = hist.slice(-30);
+eoEl.innerHTML = last30.map(d => {
+const t = d%2===0 ? 'E' : 'O';
+return `<div class="eo-chip eo-chip-${t}">${t}</div>`;
+}).join('');
+}
+// Distribution bars
+const total = hist.length||1;
+const evens = hist.filter(d=>d%2===0).length;
+const odds = hist.length - evens;
+const ep = ((evens/total)*100).toFixed(1);
+const op = ((odds/total)*100).toFixed(1);
+const epEl = document.getElementById('epct-'+id);
+const opEl = document.getElementById('opct-'+id);
+const efEl = document.getElementById('efill-'+id);
+const ofEl = document.getElementById('ofill-'+id);
+if(epEl) epEl.textContent = ep+'%';
+if(opEl) opEl.textContent = op+'%';
+if(efEl) efEl.style.width = ep+'%';
+if(ofEl) ofEl.style.width = op+'%';
+}
+// Stats
+const plEl = document.getElementById('spl-'+id);
+const rnEl = document.getElementById('srn-'+id);
+const wlEl = document.getElementById('swl-'+id);
+const skEl = document.getElementById('ssk-'+id);
+if(plEl){
+plEl.textContent=(s.pl>=0?'+':'')+s.pl.toFixed(2);
+plEl.style.color=s.pl>=0?'var(--accent)':'var(--accent2)';
+}
+if(rnEl) rnEl.textContent=s.rounds;
+if(wlEl) wlEl.textContent=s.wins+'/'+s.losses;
+if(skEl) skEl.textContent='$'+s.currentStake.toFixed(2);
+// Run button
+const rbEl = document.getElementById('rbtn-'+id);
+if(rbEl) {
+rbEl.textContent = s.running ? '⏸ Pause Strategy' : '▶ Run Strategy';
+rbEl.className = 'btn-run-strategy'+(s.running?' running':'');
+}
+}
+// ── Render all strategies ─────────────────────────────────────
+function render() {
+const container = document.getElementById('strategyList');
+if(!container) return;
+if(!strategies.length) {
+container.innerHTML = `
+<div style="text-align:center;padding:40px;color:var(--text3)">
+<div style="font-size:2.5rem;margin-bottom:10px">🧠</div>
+<div style="font-size:.9rem">No strategies yet.</div>
+<div style="font-size:.78rem;margin-top:4px">
+Tap + ADD STRATEGY to create one
+</div>
+</div>`;
+return;
+}
+container.innerHTML = strategies.map(s => renderStrategy(s)).join('');
+}
+// ── Render single strategy ────────────────────────────────────
+function renderStrategy(s) {
+const isEO = s.type==='evenodd';
+const isOU = s.type==='overunder';
+const isMD = s.type==='matches';
+const isRF = s.type==='risfall';
+return `
+<div class="strategy-item ${s.active?'sitem-active':''} ${s.open?'sitem-open':''}"
+id="sitem-${s.id}">
+<!-- Header -->
+<div class="strategy-item-header"
+onclick="StratManager.toggleOpen(${s.id})">
+<div class="sitem-num">#${s.id}</div>
+<div class="sitem-name">${s.name}</div>
+<span class="sitem-type-badge">${TYPES[s.type]||s.type}</span>
+<div class="sitem-toggle" onclick="StratManager.toggleActive(${s.id},event)">
+<button class="toggle-switch ${s.active?'ton':''}"
+id="tog-${s.id}"></button>
+<span style="font-size:.72rem;font-weight:700;
+color:${s.active?'var(--accent)':'var(--text3)'}">
+${s.active?'ACTIVE':'OFF'}
+</span>
+</div>
+<button class="sitem-delete"
+onclick="event.stopPropagation();StratManager.remove(${s.id})">
+✕
+</button>
+</div>
+<!-- Body -->
+<div class="strategy-item-body">
+<!-- Type selector -->
+<div class="logic-row" style="margin-bottom:12px">
+<span class="strat-label">Type</span>
+<select class="logic-select"
+onchange="StratManager.update(${s.id},'type',this.value);StratManager.render()">
+${Object.entries(TYPES).map(([k,v])=>
+`<option value="${k}" ${s.type===k?'selected':''}>${v}</option>`
+).join('')}
+</select>
+<select class="logic-select"
+onchange="StratManager.update(${s.id},'algo',this.value)">
+${Object.entries(ALGOS).map(([k,v])=>
+`<option value="${k}" ${s.algo===k?'selected':''}>${v}</option>`
+).join('')}
+</select>
+</div>
+<!-- Signal banner -->
+<div class="sig-banner sig-neutral" id="sig-${s.id}">
+⚖️ Waiting for signal...
+</div>
+<!-- EO grid -->
+${isEO ? `
+<div class="eo-grid" id="eogrid-${s.id}"></div>
+<div class="dist-bar-wrap">
+<div class="dist-bar-label">
+<span>EVEN</span><span id="epct-${s.id}">0%</span>
+</div>
+<div class="dist-bar-track">
+<div class="dist-bar-fill dist-bar-even"
+id="efill-${s.id}" style="width:0%">
+</div>
+</div>
+</div>
+<div class="dist-bar-wrap">
+<div class="dist-bar-label">
+<span>ODD</span><span id="opct-${s.id}">0%</span>
+</div>
+<div class="dist-bar-track">
+<div class="dist-bar-fill dist-bar-odd"
+id="ofill-${s.id}" style="width:0%">
+</div>
+</div>
+</div>` : ''}
+<!-- Logic -->
+<div class="logic-row">
+<span class="strat-label">If last</span>
+<input class="logic-num" type="number"
+value="${s.ifLast}" min="1" max="20"
+onchange="StratManager.update(${s.id},'ifLast',parseInt(this.value))"/>
+<span>digits is</span>
+<select class="logic-select"
+onchange="StratManager.update(${s.id},'ifType',this.value)">
+${isEO?`
+<option value="even" ${s.ifType==='even'?'selected':''}>EVEN</option>
+<option value="odd" ${s.ifType==='odd' ?'selected':''}>ODD</option>
+`:isOU?`
+<option value="over" ${s.ifType==='over' ?'selected':''}>OVER 5</option>
+<option value="under" ${s.ifType==='under'?'selected':''}>UNDER 5</option>
+`:isRF?`
+<option value="rise" ${s.ifType==='rise'?'selected':''}>RISE</option>
+<option value="fall" ${s.ifType==='fall'?'selected':''}>FALL</option>
+`:`<option value="match">MATCH</option>`}
+</select>
+<span>→ Trade</span>
+<select class="logic-select"
+onchange="StratManager.update(${s.id},'tradeOn',this.value)">
+${isEO?`
+<option value="even" ${s.tradeOn==='even'?'selected':''}>EVEN</option>
+<option value="odd" ${s.tradeOn==='odd' ?'selected':''}>ODD</option>
+`:isOU?`
+<option value="over" ${s.tradeOn==='over' ?'selected':''}>OVER</option>
+<option value="under" ${s.tradeOn==='under'?'selected':''}>UNDER</option>
+`:isRF?`
+<option value="rise" ${s.tradeOn==='rise'?'selected':''}>RISE</option>
+<option value="fall" ${s.tradeOn==='fall'?'selected':''}>FALL</option>
+`:`<option value="match">MATCHES</option>
+<option value="differ">DIFFERS</option>`}
+</select>
+</div>
+<!-- Digit selector (Over/Under + Matches) -->
+${(isOU||isMD) ? `
+<div style="font-size:.72rem;color:var(--text2);
+margin-bottom:6px;font-weight:700">
+SELECT DIGIT
+</div>
+<div class="digit-multi" id="digits-${s.id}">
+${[0,1,2,3,4,5,6,7,8,9].map(d=>`
+<button class="dms-btn ${s.digits.includes(d)?'dms-on':''}"
+data-d="${d}"
+onclick="StratManager.toggleDigit(${s.id},${d})">
+${d}
+</button>`).join('')}
+</div>` : ''}
+<!-- Stake row -->
+<div class="logic-row">
+<span class="strat-label">Stake</span>
+<input class="logic-num" type="number"
+value="${s.baseStake}" min="0.35" step="0.01"
+style="width:70px"
+onchange="StratManager.update(${s.id},'baseStake',parseFloat(this.value))"/>
+<span>Multiplier</span>
+<input class="logic-num" type="number"
+value="${s.multiplier}" min="1.1" step="0.1"
+style="width:60px"
+onchange="StratManager.update(${s.id},'multiplier',parseFloat(this.value))"/>
+</div>
+<!-- Stop conditions -->
+<div class="stop-cond-box">
+<div class="stop-cond-title">⬛ Stop Conditions</div>
+<div class="stop-grid">
+<div class="stop-item">
+<span class="stop-label">Stop after trades</span>
+<input class="stop-input" type="number"
+value="${s.stopTrades}" min="0"
+placeholder="0 = unlimited"
+onchange="StratManager.update(${s.id},'stopTrades',parseInt(this.value))"/>
+</div>
+<div class="stop-item">
+<span class="stop-label">Stop after wins</span>
+<input class="stop-input" type="number"
+value="${s.stopWins}" min="0"
+onchange="StratManager.update(${s.id},'stopWins',parseInt(this.value))"/>
+</div>
+<div class="stop-item">
+<span class="stop-label">Stop after losses</span>
+<input class="stop-input" type="number"
+value="${s.stopLosses}" min="0"
+onchange="StratManager.update(${s.id},'stopLosses',parseInt(this.value))"/>
+</div>
+<div class="stop-item">
+<span class="stop-label">Stop loss ($)</span>
+<input class="stop-input" type="number"
+value="${s.stopLoss}" min="0" step="0.01"
+onchange="StratManager.update(${s.id},'stopLoss',parseFloat(this.value))"/>
+</div>
+<div class="stop-item">
+<span class="stop-label">Take profit ($)</span>
+<input class="stop-input" type="number"
+value="${s.takeProfit}" min="0" step="0.01"
+onchange="StratManager.update(${s.id},'takeProfit',parseFloat(this.value))"/>
+</div>
+<div class="stop-item">
+<span class="stop-label">Recovery limit</span>
+<input class="stop-input" type="number"
+value="${s.recovery}" min="1"
+onchange="StratManager.update(${s.id},'recovery',parseInt(this.value))"/>
+</div>
+</div>
+</div>
+<!-- Stats row -->
+<div style="display:grid;grid-template-columns:repeat(4,1fr);
+gap:8px;margin-top:12px">
+<div class="bot-stat">
+<div class="bot-stat-label">P/L</div>
+<div class="bot-stat-val" id="spl-${s.id}">+0.00</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Rounds</div>
+<div class="bot-stat-val" id="srn-${s.id}">0</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">W/L</div>
+<div class="bot-stat-val" id="swl-${s.id}">0/0</div>
+</div>
+<div class="bot-stat">
+<div class="bot-stat-label">Stake</div>
+<div class="bot-stat-val" id="ssk-${s.id}">$1.00</div>
+</div>
+</div>
+<!-- Run button -->
+<button class="btn-run-strategy" id="rbtn-${s.id}"
+onclick="toggleStratRun(${s.id})">
+▶ Run Strategy
+</button>
+</div>
+</div>`;
+}
+return {
+add, remove, render,
+toggleOpen, toggleActive,
+update, toggleDigit,
+toggleRun, pushTick,
+getSignal, updateStratUI,
+};
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+setTimeout(function(){
+// ── Find strategies section and inject UI ──────────────────
+const page = document.querySelector('.page');
+if(!page) return;
+// Find section-strategies
+let stratSection = document.getElementById('section-strategies');
+if(!stratSection){
+stratSection = document.createElement('div');
+stratSection.className = 'tab-section';
+stratSection.id = 'section-strategies';
+page.appendChild(stratSection);
+}
+// Build strategy manager HTML
+stratSection.innerHTML = `
+<div style="padding:16px 0">
+<!-- Header -->
+<div style="display:flex;align-items:center;
+justify-content:space-between;margin-bottom:16px">
+<div>
+<div style="font-size:1.2rem;font-weight:800;
+color:var(--text)">🧠 Strategy Manager</div>
+<div style="font-size:.75rem;color:var(--text2);
+margin-top:2px">
+Build and run custom trading strategies
+</div>
+</div>
+<div style="display:flex;flex-direction:column;
+align-items:flex-end;gap:4px">
+<span style="font-size:.65rem;color:var(--text3)">
+Active strategies
+</span>
+<span style="font-size:1.1rem;font-weight:800;
+color:var(--accent);font-family:'DM Mono',monospace"
+id="activeStratCount">0</span>
+</div>
+</div>
+<!-- Add button -->
+<button class="btn-add-strategy"
+onclick="StratManager.add()">
+✚ ADD STRATEGY
+</button>
+<!-- Strategy list -->
+<div id="strategyList"></div>
+</div>`;
+// Initial render
+StratManager.render();
+// ── Wire ticks to StratManager ─────────────────────────────
+const _origSim = window.simulatePrice;
+window.simulatePrice = function(){
+_origSim && _origSim();
+StratManager.pushTick(state.lastDigit);
+updateActiveStratCount();
+};
+const _origOnTick = window.onTick;
+window.onTick = function(tick){
+_origOnTick && _origOnTick(tick);
+StratManager.pushTick(state.lastDigit);
+updateActiveStratCount();
+};
+}, 400);
+});
+// ── Update active count badge ──────────────────────────────────
+function updateActiveStratCount(){
+const el = document.getElementById('activeStratCount');
+if(!el) return;
+const list = document.querySelectorAll(
+'.strategy-item.sitem-active'
+).length;
+el.textContent = list;
+}
+</script>
+
+<script>
+// ══ FIX STRATEGY SIGNAL LOGIC ════════════════════════════════════
+// Override getSignal in StratManager
+// New logic:
+// "If last N+ digits is EVEN and first ODD appears → trade ODD"
+// "If last N+ digits is ODD and first EVEN appears → trade EVEN"
+const _origStratManager = StratManager;
+// Patch getSignal
+StratManager.getSignal = function(id){
+const strategies = [];
+// Access internal strategies via DOM
+document.querySelectorAll('.strategy-item').forEach(el => {
+const sid = parseInt(el.id.replace('sitem-',''));
+if(sid === id) strategies.push(sid);
+});
+// Get strategy data from inputs
+const ifLastEl = document.querySelector(`#sitem-${id} .logic-num`);
+const ifTypeEl = document.querySelectorAll(`#sitem-${id} .logic-select`)[2];
+const tradeOnEl = document.querySelectorAll(`#sitem-${id} .logic-select`)[3];
+const ifLast = ifLastEl ? parseInt(ifLastEl.value)||3 : 3;
+const ifType = ifTypeEl ? ifTypeEl.value : 'even';
+const tradeOn = tradeOnEl ? tradeOnEl.value : 'odd';
+const hist = window._stratTickHistories
+? window._stratTickHistories[id]||[]
+: [];
+if(hist.length < ifLast + 1) return 'wait';
+// Get last N+1 ticks
+const recent = hist.slice(-(ifLast + 1));
+const lastN = recent.slice(0, ifLast); // first N ticks
+const lastTick = recent[recent.length - 1]; // most recent tick
+// Check if first N were all ifType
+const allPrev = lastN.every(d =>
+ifType === 'even' ? d%2===0 : d%2!==0
+);
+// Check if latest tick is the opposite (trigger)
+const latestIsOpposite = tradeOn === 'even'
+? lastTick%2===0
+: lastTick%2!==0;
+if(allPrev && latestIsOpposite) return 'enter';
+return 'wait';
+};
+// ── Store tick histories globally so getSignal can access ───────
+window._stratTickHistories = {};
+// Patch pushTick
+StratManager.pushTick = function(digit){
+document.querySelectorAll('.strategy-item').forEach(el => {
+const id = parseInt(el.id.replace('sitem-',''));
+if(!window._stratTickHistories[id])
+window._stratTickHistories[id] = [];
+window._stratTickHistories[id].push(digit);
+if(window._stratTickHistories[id].length > 500)
+window._stratTickHistories[id].shift();
+// Update UI
+updateStrategyUI(id, digit);
+});
+updateActiveStratCount();
+};
+// ── Full UI updater ──────────────────────────────────────────────
+function updateStrategyUI(id, lastDigit){
+const hist = window._stratTickHistories[id]||[];
+// ── Signal banner ─────────────────────────────────────────────
+const sigEl = document.getElementById('sig-'+id);
+if(sigEl){
+const sig = StratManager.getSignal(id);
+// Get tradeOn value
+const tradeOnEl = document.querySelectorAll(
+`#sitem-${id} .logic-select`
+)[3];
+const tradeOn = tradeOnEl ? tradeOnEl.value : 'odd';
+// Get ifLast + ifType
+const ifLastEl = document.querySelector(`#sitem-${id} .logic-num`);
+const ifTypeEl = document.querySelectorAll(
+`#sitem-${id} .logic-select`
+)[2];
+const ifLast = ifLastEl ? parseInt(ifLastEl.value)||3 : 3;
+const ifType = ifTypeEl ? ifTypeEl.value : 'even';
+if(sig === 'enter'){
+sigEl.className = 'sig-banner sig-enter';
+sigEl.innerHTML =
+`✅ SIGNAL — Trade <b>${tradeOn.toUpperCase()}</b> now!`;
+// Auto execute if running
+const rbtn = document.getElementById('rbtn-'+id);
+if(rbtn && rbtn.classList.contains('running')){
+executeStratTrade(id);
+}
+} else {
+sigEl.className = 'sig-banner sig-neutral';
+// Count consecutive ifType
+const recent = hist.slice(-ifLast);
+const matchCount = recent.filter(d =>
+ifType==='even' ? d%2===0 : d%2!==0
+).length;
+sigEl.innerHTML =
+`⚖️ Need ${ifLast}x ${ifType.toUpperCase()} — `+
+`got <b>${matchCount}</b> so far`;
+}
+}
+// ── EO grid ───────────────────────────────────────────────────
+const eoEl = document.getElementById('eogrid-'+id);
+if(eoEl){
+const last30 = hist.slice(-30);
+eoEl.innerHTML = last30.map((d,i) => {
+const t = d%2===0 ? 'E' : 'O';
+const cls = d%2===0 ? 'eo-chip-E' : 'eo-chip-O';
+const isNew = i === last30.length-1 ? 'eo-chip-new' : '';
+return `<div class="eo-chip ${cls} ${isNew}">${t}</div>`;
+}).join('');
+}
+// ── Distribution bars ─────────────────────────────────────────
+const total = hist.length||1;
+const evens = hist.filter(d=>d%2===0).length;
+const odds = hist.length - evens;
+const ep = ((evens/total)*100).toFixed(1);
+const op = ((odds/total)*100).toFixed(1);
+const epEl = document.getElementById('epct-'+id);
+const opEl = document.getElementById('opct-'+id);
+const efEl = document.getElementById('efill-'+id);
+const ofEl = document.getElementById('ofill-'+id);
+if(epEl) epEl.textContent = ep+'%';
+if(opEl) opEl.textContent = op+'%';
+if(efEl) efEl.style.width = ep+'%';
+if(ofEl) ofEl.style.width = op+'%';
+}
+// ── Execute strategy trade ────────────────────────────────────────
+function executeStratTrade(id){
+const tradeOnEl = document.querySelectorAll(
+`#sitem-${id} .logic-select`
+)[3];
+const stakeEl = document.querySelector(
+`#sitem-${id} .logic-num`
+);
+const tradeOn = tradeOnEl ? tradeOnEl.value : 'odd';
+// Get current stake from stat display
+const skEl = document.getElementById('ssk-'+id);
+const stake = skEl
+? parseFloat(skEl.textContent.replace('$',''))||1
+: 1;
+const symbol = SYMBOL_MAP[state.market]||'R_100';
+const ctype = tradeOn==='even' ? 'DIGITEVEN' : 'DIGITODD';
+// Real trade
+if(window.derivWS && window.derivWS.token){
+window.derivWS.buyContract({
+stake, symbol, contract_type:ctype,
+duration:1, duration_unit:'t',
+});
+}
+// Simulated result
+const win = Math.random() > 0.45;
+const payout = win ? stake*1.85 : 0;
+const pl = win ? payout-stake : -stake;
+state.balance = parseFloat((state.balance+pl).toFixed(2));
+const trade = {
+id: (state.allHistory.length+1),
+time: new Date().toLocaleTimeString(),
+market: state.market,
+type: 'strat#'+id,
+contract: ctype.toLowerCase(),
+stake, payout, pl,
+result: win?'win':'loss',
+};
+state.allHistory.unshift(trade);
+state.tradeHistory.unshift(trade);
+// Update stats
+const plEl = document.getElementById('spl-'+id);
+const rnEl = document.getElementById('srn-'+id);
+const wlEl = document.getElementById('swl-'+id);
+const skEl2 = document.getElementById('ssk-'+id);
+const curPL = plEl ? parseFloat(plEl.textContent)||0 : 0;
+const curRn = rnEl ? parseInt(rnEl.textContent)||0 : 0;
+const wlParts = wlEl ? wlEl.textContent.split('/') : ['0','0'];
+const curW = parseInt(wlParts[0])||0;
+const curL = parseInt(wlParts[1])||0;
+if(plEl){
+const newPL = parseFloat((curPL+pl).toFixed(2));
+plEl.textContent=(newPL>=0?'+':'')+newPL.toFixed(2);
+plEl.style.color=newPL>=0?'var(--accent)':'var(--accent2)';
+}
+if(rnEl) rnEl.textContent = curRn+1;
+if(wlEl) wlEl.textContent =
+(win?curW+1:curW)+'/'+(win?curL:curL+1);
+// Next stake (martingale default)
+const nextStake = win ? 1 : Math.min(stake*2, 50);
+if(skEl2) skEl2.textContent = '$'+nextStake.toFixed(2);
+updateBalanceUI();
+renderStickyHistory();
+showToast(win,'STRAT#'+id, pl, stake);
+}
+</script>
+
+<script>
+// ══ INJECT STOP CONDITIONS OUTSIDE EACH STRATEGY ═════════════════
+function injectStopConditions(id){
+const sitem = document.getElementById('sitem-'+id);
+if(!sitem) return;
+// Remove old inner stop box
+const oldBox = sitem.querySelector('.stop-cond-box');
+if(oldBox) oldBox.remove();
+// Build outer stop card
+const outer = document.createElement('div');
+outer.className = 'stop-cond-outer';
+outer.id = 'stopcond-'+id;
+outer.innerHTML = `
+<div class="stop-cond-outer-title">
+<span style="font-size:1rem">⛔</span>
+Stop Conditions — Strategy #${id}
+</div>
+<div class="stop-outer-grid">
+<div class="stop-outer-item">
+<span class="stop-outer-label">Stop after trades</span>
+<input class="stop-outer-input" type="number"
+id="sc-trades-${id}"
+value="0" min="0" placeholder="0 = unlimited"
+onchange="updateStopCond(${id},'stopTrades',this.value)"/>
+</div>
+<div class="stop-outer-item">
+<span class="stop-outer-label">Stop after wins</span>
+<input class="stop-outer-input" type="number"
+id="sc-wins-${id}"
+value="1" min="0"
+onchange="updateStopCond(${id},'stopWins',this.value)"/>
+</div>
+<div class="stop-outer-item">
+<span class="stop-outer-label">Stop after losses</span>
+<input class="stop-outer-input" type="number"
+id="sc-losses-${id}"
+value="0" min="0"
+onchange="updateStopCond(${id},'stopLosses',this.value)"/>
+</div>
+<div class="stop-outer-item">
+<span class="stop-outer-label">Stop loss ($)</span>
+<input class="stop-outer-input" type="number"
+id="sc-sl-${id}"
+value="10" min="0" step="0.01"
+style="border-color:#ff3e6c40"
+onchange="updateStopCond(${id},'stopLoss',this.value)"/>
+</div>
+<div class="stop-outer-item">
+<span class="stop-outer-label">Take profit ($)</span>
+<input class="stop-outer-input" type="number"
+id="sc-tp-${id}"
+value="20" min="0" step="0.01"
+style="border-color:#00e5a040"
+onchange="updateStopCond(${id},'takeProfit',this.value)"/>
+</div>
+<div class="stop-outer-item">
+<span class="stop-outer-label">Recovery limit</span>
+<input class="stop-outer-input" type="number"
+id="sc-rec-${id}"
+value="8" min="1"
+onchange="updateStopCond(${id},'recovery',this.value)"/>
+</div>
+</div>`;
+// Insert AFTER strategy item
+sitem.insertAdjacentElement('afterend', outer);
+}
+// ── Store stop conditions per strategy ───────────────────────────
+window._stratStopConds = {};
+function updateStopCond(id, field, val){
+if(!window._stratStopConds[id])
+window._stratStopConds[id] = {
+stopTrades:0, stopWins:1,
+stopLosses:0, stopLoss:10,
+takeProfit:20, recovery:8,
+};
+window._stratStopConds[id][field] =
+field==='stopLoss'||field==='takeProfit'
+? parseFloat(val)||0
+: parseInt(val)||0;
+}
+// Check stop conditions before trade
+function checkStratStopConds(id){
+const conds = window._stratStopConds[id];
+if(!conds) return true; // allow trade
+const plEl = document.getElementById('spl-'+id);
+const rnEl = document.getElementById('srn-'+id);
+const wlEl = document.getElementById('swl-'+id);
+const pl = plEl ? parseFloat(plEl.textContent)||0 : 0;
+const rn = rnEl ? parseInt(rnEl.textContent)||0 : 0;
+const wlP = wlEl ? wlEl.textContent.split('/') : ['0','0'];
+const wins = parseInt(wlP[0])||0;
+const losses= parseInt(wlP[1])||0;
+if(conds.stopTrades>0 && rn>=conds.stopTrades){
+stopStratUI(id,'🔢 Trade limit reached'); return false;
+}
+if(conds.stopWins>0 && wins>=conds.stopWins){
+stopStratUI(id,'🎯 Win target reached'); return false;
+}
+if(conds.stopLosses>0 && losses>=conds.stopLosses){
+stopStratUI(id,'🛑 Loss limit reached'); return false;
+}
+if(pl >= conds.takeProfit){
+stopStratUI(id,'💰 Take Profit hit'); return false;
+}
+if(pl <= -conds.stopLoss){
+stopStratUI(id,'🛑 Stop Loss hit'); return false;
+}
+return true;
+}
+function stopStratUI(id, reason){
+const rbtn = document.getElementById('rbtn-'+id);
+if(rbtn){
+rbtn.textContent = '▶ Run Strategy';
+rbtn.classList.remove('running');
+}
+const sigEl = document.getElementById('sig-'+id);
+if(sigEl){
+sigEl.className = 'sig-banner sig-block';
+sigEl.textContent = reason;
+}
+}
+// ── Hook into add strategy ────────────────────────────────────────
+const _origAdd = StratManager.add.bind(StratManager);
+StratManager.add = function(){
+_origAdd();
+// Find newest strategy id
+setTimeout(()=>{
+const items = document.querySelectorAll('.strategy-item');
+if(items.length){
+const last = items[items.length-1];
+const id = parseInt(last.id.replace('sitem-',''));
+if(id) injectStopConditions(id);
+}
+}, 100);
+};
+// ── Patch executeStratTrade to check stop conds ───────────────────
+const _origExec = window.executeStratTrade;
+window.executeStratTrade = function(id){
+if(!checkStratStopConds(id)) return;
+_origExec && _origExec(id);
+};
+// ── Run button logic ──────────────────────────────────────────────
+window.toggleStratRun = function(id){
+const rbtn = document.getElementById('rbtn-'+id);
+if(!rbtn) return;
+const isRunning = rbtn.classList.contains('running');
+if(isRunning){
+rbtn.classList.remove('running');
+rbtn.textContent = '▶ Run Strategy';
+const sigEl = document.getElementById('sig-'+id);
+if(sigEl){
+sigEl.className = 'sig-banner sig-neutral';
+sigEl.textContent = '⏸ Strategy paused';
+}
+} else {
+rbtn.classList.add('running');
+rbtn.textContent = '⏸ Pause Strategy';
+}
+};
+</script>
