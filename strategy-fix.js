@@ -652,3 +652,148 @@ window.addEventListener('load',function(){
     console.log('[NextTrade v3] ✅ Loaded');
   },800);
 });
+
+// ══ FIX LDP ═══════════════════════════════════════════════════════
+window.addEventListener('load', function(){
+  setTimeout(function(){
+
+    // ── 1. Start LDP counting immediately on page load ────────
+    // Don't wait for login — simulate ticks from start
+    if(!window._ldpGlobalHistory) window._ldpGlobalHistory = [];
+
+    // Override _handleTick to always record
+    const _origHandle = window._handleTick;
+    window._handleTick = function(digit){
+      // Always push to global LDP history
+      window._ldpGlobalHistory.push(digit);
+      if(window._ldpGlobalHistory.length > 1000)
+        window._ldpGlobalHistory.shift();
+
+      // Push to all strategy histories too
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        if(!window._stratTickHistories[id])
+          window._stratTickHistories[id]=[];
+        window._stratTickHistories[id].push(digit);
+        if(window._stratTickHistories[id].length>500)
+          window._stratTickHistories[id].shift();
+        updateStrategyUI(id);
+      });
+
+      // Call original for UI updates
+      updatePriceUI();
+      updateChart();
+      updateTagTick();
+      if(window.LDPData) LDPData.push(digit);
+      if(window.LDPUi){
+        LDPUi.render(state.selectedDigit);
+        LDPUi.flashDigit(digit);
+      }
+      updateActiveLDP();
+      updateActiveStratCount();
+    };
+
+    // ── 2. Fix EO grid direction — newest on RIGHT ────────────
+    // Override updateStrategyUI eo grid to show oldest→newest
+    const _origUpdateUI = window.updateStrategyUI;
+    window.updateStrategyUI = function(id){
+      const hist = window._stratTickHistories[id]||[];
+      const {sig,ifLast,ifType,tradeOn} = getStratSignal(id);
+
+      // Signal banner
+      const sigEl = document.getElementById('sig-'+id);
+      if(sigEl){
+        if(sig==='enter'){
+          sigEl.className='sig-banner sig-enter';
+          sigEl.innerHTML='✅ SIGNAL — Trade <b>'+tradeOn.toUpperCase()+'</b>!';
+          const rb=document.getElementById('rbtn-'+id);
+          if(rb&&rb.classList.contains('running')){
+            if(checkStratStopConds(id)) executeStratTrade(id);
+          }
+        } else {
+          sigEl.className='sig-banner sig-neutral';
+          const cnt=hist.slice(-ifLast).filter(d=>
+            ifType==='even'?d%2===0:d%2!==0).length;
+          sigEl.innerHTML='⚖️ Need '+ifLast+'x '+
+            ifType.toUpperCase()+' — got <b>'+cnt+'</b>';
+        }
+      }
+
+      // EO grid — LEFT=oldest RIGHT=newest (natural reading order)
+      const eoEl=document.getElementById('eogrid-'+id);
+      if(eoEl){
+        const last30=hist.slice(-30); // already oldest→newest
+        eoEl.innerHTML=last30.map((d,i)=>{
+          const t=d%2===0?'E':'O';
+          const cls=d%2===0?'eo-chip-E':'eo-chip-O';
+          // Highlight last N digits
+          const isRecent=i>=last30.length-ifLast;
+          const isNewest=i===last30.length-1;
+          return '<div class="eo-chip '+cls+
+            (isNewest?' eo-chip-new':'')+
+            (isRecent?' eo-chip-recent':'')+'">'+t+'</div>';
+        }).join('');
+      }
+
+      // Distribution bars
+      const total=hist.length||1;
+      const evens=hist.filter(d=>d%2===0).length;
+      const ep=((evens/total)*100).toFixed(1);
+      const op=(((total-evens)/total)*100).toFixed(1);
+      const epEl=document.getElementById('epct-'+id);
+      const opEl=document.getElementById('opct-'+id);
+      const efEl=document.getElementById('efill-'+id);
+      const ofEl=document.getElementById('ofill-'+id);
+      if(epEl) epEl.textContent=ep+'%';
+      if(opEl) opEl.textContent=op+'%';
+      if(efEl) efEl.style.width=ep+'%';
+      if(ofEl) ofEl.style.width=op+'%';
+    };
+
+    // ── 3. LDP per market — update on market change ───────────
+    window.updateActiveLDP = function(){
+      // Update LDP section sample size
+      const el=document.getElementById('ldpSampleSize');
+      if(el) el.textContent=
+        'Last '+(window._ldpGlobalHistory.length)+' / 1000 ticks';
+
+      // Update tick log
+      updateTickLog();
+    };
+
+    // Override onMarketChange to reset LDP history per market
+    const _origMarket = window.onMarketChange;
+    window.onMarketChange = function(){
+      if(_origMarket) _origMarket();
+      // Reset strategy tick histories for new market
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(id) window._stratTickHistories[id]=[];
+      });
+      // Subscribe to new market ticks
+      if(window.derivWS&&window.derivWS.connected){
+        const symbol=SYMBOL_MAP[state.market]||'R_100';
+        window.derivWS.subscribeTicks(symbol);
+      }
+    };
+
+    // ── Add recent highlight style ────────────────────────────
+    const s=document.createElement('style');
+    s.textContent=`
+      .eo-chip-recent{
+        opacity:1;
+        box-shadow:0 0 6px rgba(255,255,255,0.15);
+      }
+      .eo-chip-E.eo-chip-recent{
+        border:1.5px solid #00e5a060;
+      }
+      .eo-chip-O.eo-chip-recent{
+        border:1.5px solid #ff3e6c60;
+      }
+    `;
+    document.head.appendChild(s);
+
+    console.log('[LDP] Fixed ✅');
+  }, 1200);
+});
