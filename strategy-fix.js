@@ -797,3 +797,85 @@ window.addEventListener('load', function(){
     console.log('[LDP] Fixed ✅');
   }, 1200);
 });
+
+// ══ FIX LDP DIRECTION + ALWAYS COUNT ════════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // 1. Always count from page load
+    const _origSim = window.simulatePrice;
+    window.simulatePrice = function(){
+      if(window.derivWS&&window.derivWS.token) return;
+      const vol=VOLATILITY[state.market]||0.25;
+      state.prevPrice=state.price;
+      state.price=Math.max(10,state.price+(Math.random()-0.5)*2*vol);
+      const ps=state.price.toFixed(2);
+      state.lastDigit=parseInt(ps[ps.length-1]);
+      state.tickCount++;
+      state.chartData.push(state.price);
+      if(state.chartData.length>500) state.chartData.shift();
+      // Feed all strategies immediately
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        if(!window._stratTickHistories[id]) window._stratTickHistories[id]=[];
+        window._stratTickHistories[id].push(state.lastDigit);
+        if(window._stratTickHistories[id].length>500) window._stratTickHistories[id].shift();
+        updateStrategyUI(id);
+      });
+      updatePriceUI();updateChart();updateLDP();
+      updateTickLog();updateTagTick();
+      if(window.LDPData) LDPData.push(state.lastDigit);
+      if(window.LDPUi){LDPUi.render(state.selectedDigit);LDPUi.flashDigit(state.lastDigit);}
+      updateActiveStratCount();
+    };
+
+    // 2. Fix EO grid LEFT=oldest RIGHT=newest
+    const _origUI=window.updateStrategyUI;
+    window.updateStrategyUI=function(id){
+      const hist=window._stratTickHistories[id]||[];
+      const {sig,ifLast,ifType,tradeOn}=getStratSignal(id);
+      const sigEl=document.getElementById('sig-'+id);
+      if(sigEl){
+        if(sig==='enter'){
+          sigEl.className='sig-banner sig-enter';
+          sigEl.innerHTML='✅ SIGNAL — Trade <b>'+tradeOn.toUpperCase()+'</b>!';
+          const rb=document.getElementById('rbtn-'+id);
+          if(rb&&rb.classList.contains('running')){
+            if(checkStratStopConds(id)) executeStratTrade(id);
+          }
+        } else {
+          sigEl.className='sig-banner sig-neutral';
+          const cnt=hist.slice(-ifLast).filter(d=>
+            ifType==='even'?d%2===0:d%2!==0).length;
+          sigEl.innerHTML='⚖️ Need '+ifLast+'x '+ifType.toUpperCase()+' — got <b>'+cnt+'</b>';
+        }
+      }
+      // LEFT=oldest RIGHT=newest
+      const eoEl=document.getElementById('eogrid-'+id);
+      if(eoEl){
+        const last30=hist.slice(-30);
+        eoEl.innerHTML=last30.map((d,i)=>{
+          const t=d%2===0?'E':'O';
+          const cls=d%2===0?'eo-chip-E':'eo-chip-O';
+          const isNew=i===last30.length-1?'eo-chip-new':'';
+          const isRecent=i>=last30.length-ifLast?'style="box-shadow:0 0 6px rgba(255,255,255,0.2)"':'';
+          return '<div class="eo-chip '+cls+' '+isNew+'" '+isRecent+'>'+t+'</div>';
+        }).join('');
+      }
+      const total=hist.length||1;
+      const evens=hist.filter(d=>d%2===0).length;
+      const ep=((evens/total)*100).toFixed(1);
+      const op=(((total-evens)/total)*100).toFixed(1);
+      const epEl=document.getElementById('epct-'+id);
+      const opEl=document.getElementById('opct-'+id);
+      const efEl=document.getElementById('efill-'+id);
+      const ofEl=document.getElementById('ofill-'+id);
+      if(epEl) epEl.textContent=ep+'%';
+      if(opEl) opEl.textContent=op+'%';
+      if(efEl) efEl.style.width=ep+'%';
+      if(ofEl) ofEl.style.width=op+'%';
+    };
+
+  },1500);
+});
