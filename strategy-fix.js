@@ -879,3 +879,122 @@ window.addEventListener('load',function(){
 
   },1500);
 });
+
+// ══ VOLATILITY SWITCHER PER STRATEGY ════════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // Patch StratManager.render to add volatility selector
+    const _origRender = StratManager.render.bind(StratManager);
+    StratManager.render = function(){
+      _origRender();
+      // Add volatility selector to each strategy
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        if(document.getElementById('strat-vol-'+id)) return;
+        const body=el.querySelector('.strategy-item-body');
+        if(!body) return;
+        const volWrap=document.createElement('div');
+        volWrap.className='logic-row';
+        volWrap.style.marginBottom='12px';
+        volWrap.innerHTML=`
+          <span class="strat-label">Market</span>
+          <div class="select-wrap" style="flex:1">
+            <select class="logic-select" id="strat-vol-${id}"
+              style="width:100%"
+              onchange="switchStratMarket(${id},this.value)">
+              <optgroup label="Volatility Index">
+                <option value="V10">Volatility 10</option>
+                <option value="V25">Volatility 25</option>
+                <option value="V50">Volatility 50</option>
+                <option value="V75">Volatility 75</option>
+                <option value="V100" selected>Volatility 100</option>
+              </optgroup>
+              <optgroup label="Volatility 1s">
+                <option value="V10_1S">Volatility 10(1s)</option>
+                <option value="V25_1S">Volatility 25(1s)</option>
+                <option value="V50_1S">Volatility 50(1s)</option>
+                <option value="V75_1S">Volatility 75(1s)</option>
+                <option value="V100_1S">Volatility 100(1s)</option>
+              </optgroup>
+            </select>
+          </div>`;
+        // Insert at top of body
+        body.insertBefore(volWrap, body.firstChild);
+      });
+    };
+
+    // Per-strategy market map
+    window._stratMarkets = {};
+
+    window.switchStratMarket = function(id, market){
+      window._stratMarkets[id] = market;
+      // Reset tick history for this strategy
+      window._stratTickHistories[id] = [];
+      resetStakeState(id);
+      // Update signal
+      const sigEl=document.getElementById('sig-'+id);
+      if(sigEl){
+        sigEl.className='sig-banner sig-neutral';
+        sigEl.textContent='⚖️ Switched to '+market+' — collecting ticks...';
+      }
+      // If WS connected subscribe to this market
+      if(window.derivWS&&window.derivWS.connected&&window.derivWS.token){
+        const symbol=SYMBOL_MAP[market]||'R_100';
+        // Subscribe per strategy (note: WS only supports one tick sub at a time)
+        // We track which market each strategy wants
+        console.log('[Strat#'+id+'] Market set to '+market);
+      }
+    };
+
+    // Override _handleTick to route ticks per strategy market
+    const _origHandle2 = window._handleTick;
+    window._handleTick = function(digit){
+      // Route tick to strategies watching current market
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        const stratMarket = window._stratMarkets[id]||state.market;
+        // Only feed tick if strategy market matches current market
+        if(stratMarket===state.market){
+          if(!window._stratTickHistories[id])
+            window._stratTickHistories[id]=[];
+          window._stratTickHistories[id].push(digit);
+          if(window._stratTickHistories[id].length>500)
+            window._stratTickHistories[id].shift();
+          updateStrategyUI(id);
+        }
+      });
+      updatePriceUI();updateChart();updateLDP();
+      updateTickLog();updateTagTick();
+      if(window.LDPData) LDPData.push(digit);
+      if(window.LDPUi){
+        LDPUi.render(state.selectedDigit);
+        LDPUi.flashDigit(digit);
+      }
+      updateActiveStratCount();
+    };
+
+    // Re-render to add volatility selectors
+    StratManager.render();
+
+    // Patch add to include vol selector
+    const _origAdd2=StratManager.add.bind(StratManager);
+    StratManager.add=function(){
+      _origAdd2();
+      setTimeout(()=>{
+        StratManager.render();
+        const items=document.querySelectorAll('.strategy-item');
+        if(!items.length) return;
+        const last=items[items.length-1];
+        const id=parseInt(last.id.replace('sitem-',''));
+        if(!id) return;
+        const old=document.getElementById('stopcond-'+id);
+        if(old) old.remove();
+        injectStopConditions(id);
+      },200);
+    };
+
+  },1800);
+});
