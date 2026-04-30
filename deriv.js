@@ -14,7 +14,6 @@ function derivLogout(){
   updateAuthUI(false);
   const card=document.getElementById('accountSwitcherCard');
   if(card) card.style.display='none';
-  // Restart simulation
   window._simInterval=setInterval(simulatePrice,1000);
   window.location.href=window.location.pathname;
 }
@@ -54,10 +53,7 @@ class DerivWS{
     else this.queue.push(req);
   }
   flushQueue(){ while(this.queue.length) this.send(this.queue.shift()); }
-  authorize(token){
-    this.token=token;
-    this.send({authorize:token});
-  }
+  authorize(token){ this.token=token; this.send({authorize:token}); }
   subscribeTicks(symbol){
     this.send({forget_all:'ticks'});
     this.send({ticks:symbol,subscribe:1});
