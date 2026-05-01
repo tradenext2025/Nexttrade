@@ -1680,3 +1680,171 @@ window.addEventListener('load',function(){
     console.log('[Vol Fix] ✅');
   },2200);
 });
+
+// ══ GLOBAL VOLATILITY BAR ════════════════════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // ── Remove volatility from inside strategy cards ───────────
+    const s=document.createElement('style');
+    s.textContent=`
+      [id^="vol-wrap-"]{display:none!important}
+      [id^="risk-wrap-"]{display:none!important}
+    `;
+    document.head.appendChild(s);
+
+    // ── Build global vol bar ───────────────────────────────────
+    const volBar=document.createElement('div');
+    volBar.id='globalVolBar';
+    volBar.innerHTML=`
+      <style>
+        .global-vol-bar{
+          background:var(--bg2);
+          border-bottom:1px solid var(--border);
+          padding:10px 16px;
+          position:sticky;top:96px;z-index:98;
+        }
+        .global-vol-title{
+          font-size:.62rem;font-weight:700;
+          text-transform:uppercase;letter-spacing:.1em;
+          color:var(--text3);margin-bottom:8px;
+        }
+        .global-vol-scroll{
+          display:flex;gap:6px;
+          overflow-x:auto;scrollbar-width:none;
+          white-space:nowrap;
+          -webkit-overflow-scrolling:touch;
+        }
+        .global-vol-scroll::-webkit-scrollbar{display:none}
+        .gvol-btn{
+          padding:7px 14px;border-radius:20px;
+          font-size:.78rem;font-weight:700;
+          background:var(--bg3);
+          border:1.5px solid var(--border2);
+          color:var(--text2);cursor:pointer;
+          transition:all var(--tr);flex-shrink:0;
+          white-space:nowrap;
+        }
+        .gvol-btn.active{
+          background:var(--accent);
+          border-color:var(--accent);
+          color:#0b0d12;
+          box-shadow:0 0 12px #00e5a030;
+        }
+        .gvol-btn:hover:not(.active){
+          border-color:var(--accent);
+          color:var(--accent);
+        }
+        .gvol-divider{
+          width:1px;background:var(--border2);
+          margin:0 4px;flex-shrink:0;
+        }
+      </style>
+      <div class="global-vol-bar">
+        <div class="global-vol-title">Market</div>
+        <div class="global-vol-scroll" id="gvolScroll">
+          <button class="gvol-btn" data-v="V10"
+            onclick="switchGlobalMarket('V10')">V10</button>
+          <button class="gvol-btn" data-v="V25"
+            onclick="switchGlobalMarket('V25')">V25</button>
+          <button class="gvol-btn" data-v="V50"
+            onclick="switchGlobalMarket('V50')">V50</button>
+          <button class="gvol-btn" data-v="V75"
+            onclick="switchGlobalMarket('V75')">V75</button>
+          <button class="gvol-btn active" data-v="V100"
+            onclick="switchGlobalMarket('V100')">V100</button>
+          <div class="gvol-divider"></div>
+          <button class="gvol-btn" data-v="V10_1S"
+            onclick="switchGlobalMarket('V10_1S')">V10(1s)</button>
+          <button class="gvol-btn" data-v="V25_1S"
+            onclick="switchGlobalMarket('V25_1S')">V25(1s)</button>
+          <button class="gvol-btn" data-v="V50_1S"
+            onclick="switchGlobalMarket('V50_1S')">V50(1s)</button>
+          <button class="gvol-btn" data-v="V75_1S"
+            onclick="switchGlobalMarket('V75_1S')">V75(1s)</button>
+          <button class="gvol-btn" data-v="V100_1S"
+            onclick="switchGlobalMarket('V100_1S')">V100(1s)</button>
+        </div>
+      </div>`;
+
+    // Insert after scroll tabs bar
+    const scrollTabsWrap=document.getElementById('scrollTabsWrap');
+    if(scrollTabsWrap){
+      scrollTabsWrap.insertAdjacentElement('afterend',volBar);
+    } else {
+      const navbar=document.querySelector('.navbar');
+      if(navbar) navbar.insertAdjacentElement('afterend',volBar);
+    }
+
+    // ── Global market switch function ──────────────────────────
+    window.switchGlobalMarket=function(market){
+      // Update button UI
+      document.querySelectorAll('.gvol-btn').forEach(b=>{
+        b.classList.toggle('active',b.getAttribute('data-v')===market);
+      });
+
+      // Update global state
+      state.market=market;
+      const mainSel=document.getElementById('marketSelect');
+      if(mainSel) mainSel.value=market;
+
+      // Reset price + chart
+      const prices={
+        V10:500,V25:600,V50:700,V75:800,V100:1400,
+        V10_1S:500,V25_1S:600,V50_1S:700,
+        V75_1S:800,V100_1S:1400,
+      };
+      state.price=prices[market]||1000;
+      state.chartData=[];
+      state.digitCounts=new Array(10).fill(0);
+      state.tickCount=0;
+
+      // Update market tag
+      const tagEl=document.getElementById('tagMarket');
+      if(tagEl) tagEl.textContent=market;
+
+      // Reset ALL strategy tick histories
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        window._stratMarkets[id]=market;
+        window._stratTickHistories[id]=[];
+        resetStakeState(id);
+        const eoEl=document.getElementById('eogrid-'+id);
+        if(eoEl) eoEl.innerHTML='';
+        ['epct','opct'].forEach(p=>{
+          const e=document.getElementById(p+'-'+id);
+          if(e) e.textContent='0%';
+        });
+        ['efill','ofill'].forEach(p=>{
+          const e=document.getElementById(p+'-'+id);
+          if(e) e.style.width='0%';
+        });
+        const sigEl=document.getElementById('sig-'+id);
+        if(sigEl){
+          sigEl.className='sig-banner sig-neutral';
+          sigEl.textContent='⚖️ '+market+' — collecting...';
+        }
+      });
+
+      // Subscribe WS
+      if(window.derivWS&&window.derivWS.connected){
+        window.derivWS.subscribeTicks(
+          SYMBOL_MAP[market]||'R_100');
+      }
+
+      // Update LDP
+      if(window.LDPData) LDPData.reset&&LDPData.reset();
+      state.digitCounts=new Array(10).fill(0);
+
+      showToast(true,'MARKET',0,0);
+      document.getElementById('toastMsg').textContent=
+        '✓ Market → '+market;
+    };
+
+    // Set initial active market
+    switchGlobalMarket(state.market||'V100');
+
+    console.log('[Global Vol Bar] ✅');
+  },1000);
+});
