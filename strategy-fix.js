@@ -998,3 +998,370 @@ window.addEventListener('load',function(){
 
   },1800);
 });
+
+// ══ VOLATILITY + RISK MANAGER ════════════════════════════════════
+(function(){
+const s=document.createElement('style');
+s.textContent=`
+.vol-tabs{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:12px;
+}
+.vol-tab{
+  padding:5px 12px;border-radius:20px;
+  font-size:.72rem;font-weight:700;
+  background:var(--bg3);border:1.5px solid var(--border2);
+  color:var(--text2);cursor:pointer;
+  transition:all var(--tr);white-space:nowrap;
+}
+.vol-tab.active{
+  background:var(--accent);color:#0b0d12;
+  border-color:var(--accent);
+}
+.vol-tab:hover:not(.active){
+  border-color:var(--accent);color:var(--accent);
+}
+.risk-manager{
+  background:var(--bg);border:1.5px solid var(--border2);
+  border-radius:var(--r);padding:14px;
+  margin-bottom:14px;
+}
+.risk-manager-title{
+  font-size:.75rem;font-weight:800;
+  text-transform:uppercase;letter-spacing:.1em;
+  color:var(--text2);margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;
+}
+.risk-level-row{
+  display:flex;gap:6px;margin-bottom:12px;
+}
+.risk-level-btn{
+  flex:1;padding:8px;border-radius:var(--rs);
+  font-size:.72rem;font-weight:800;
+  border:1.5px solid var(--border2);
+  background:var(--bg3);cursor:pointer;
+  transition:all var(--tr);text-align:center;
+}
+.risk-level-btn.active-low{
+  background:#00e5a020;border-color:var(--accent);
+  color:var(--accent);
+}
+.risk-level-btn.active-med{
+  background:#ffd16620;border-color:var(--accent3);
+  color:var(--accent3);
+}
+.risk-level-btn.active-high{
+  background:#ff3e6c20;border-color:var(--accent2);
+  color:var(--accent2);
+}
+.risk-meter-bar{
+  height:8px;border-radius:4px;
+  background:var(--bg3);overflow:hidden;
+  margin-bottom:8px;
+}
+.risk-meter-fill{
+  height:100%;border-radius:4px;
+  transition:width 0.5s ease,background 0.3s ease;
+}
+.risk-stats{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:8px;margin-top:10px;
+}
+.risk-stat{
+  background:var(--bg3);border-radius:var(--rs);
+  padding:8px;text-align:center;
+  border:1px solid var(--border);
+}
+.risk-stat-label{
+  font-size:.58rem;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.risk-stat-val{
+  font-size:.85rem;font-weight:800;
+  font-family:'DM Mono',monospace;
+  margin-top:2px;
+}
+`;
+document.head.appendChild(s);
+})();
+
+// ══ VOLATILITY + RISK MANAGER LOGIC ══════════════════════════════
+window._stratMarkets={};
+window._riskLevel='low';
+
+const RISK_PRESETS={
+  low:{
+    baseStake:0.35,multiplier:1.5,
+    stopLoss:5,takeProfit:10,
+    stopWins:3,stopLosses:3,
+    color:'var(--accent)',label:'Low Risk',pct:15,
+  },
+  medium:{
+    baseStake:1,multiplier:2,
+    stopLoss:10,takeProfit:20,
+    stopWins:5,stopLosses:5,
+    color:'var(--accent3)',label:'Medium Risk',pct:50,
+  },
+  high:{
+    baseStake:2,multiplier:3,
+    stopLoss:20,takeProfit:50,
+    stopWins:10,stopLosses:8,
+    color:'var(--accent2)',label:'High Risk',pct:85,
+  },
+};
+
+function applyRiskToStrategy(id,level){
+  const p=RISK_PRESETS[level];
+  if(!p) return;
+  // Update stop conditions
+  const sk=document.getElementById('sc-stake-'+id);
+  const mt=document.getElementById('sc-mult-'+id);
+  const sl=document.querySelector('#stopcond-'+id+' input[onchange*="stopLoss"]');
+  const tp=document.querySelector('#stopcond-'+id+' input[onchange*="takeProfit"]');
+  const sw=document.querySelector('#stopcond-'+id+' input[onchange*="stopWins"]');
+  const sl2=document.querySelector('#stopcond-'+id+' input[onchange*="stopLosses"]');
+  if(sk) sk.value=p.baseStake.toFixed(2);
+  if(mt) mt.value=p.multiplier.toFixed(1);
+  if(sl) sl.value=p.stopLoss;
+  if(tp) tp.value=p.takeProfit;
+  if(sw) sw.value=p.stopWins;
+  if(sl2) sl2.value=p.stopLosses;
+  // Update internal state
+  updateStopCond(id,'baseStake',p.baseStake);
+  updateStopCond(id,'multiplier',p.multiplier);
+  updateStopCond(id,'stopLoss',p.stopLoss);
+  updateStopCond(id,'takeProfit',p.takeProfit);
+  updateStopCond(id,'stopWins',p.stopWins);
+  updateStopCond(id,'stopLosses',p.stopLosses);
+  resetStakeState(id);
+  // Update risk meter
+  updateRiskMeterUI(id,level);
+  showToast(true,'RISK',0,0);
+  document.getElementById('toastMsg').textContent=
+    '✓ '+p.label+' applied to Strategy #'+id;
+}
+
+function updateRiskMeterUI(id,level){
+  const p=RISK_PRESETS[level]||RISK_PRESETS.low;
+  const fill=document.getElementById('risk-fill-'+id);
+  const label=document.getElementById('risk-label-'+id);
+  if(fill){
+    fill.style.width=p.pct+'%';
+    fill.style.background=p.color;
+  }
+  if(label) label.textContent=p.label;
+  // Update buttons
+  ['low','medium','high'].forEach(l=>{
+    const btn=document.getElementById('risk-btn-'+l+'-'+id);
+    if(btn){
+      btn.className='risk-level-btn'+(l===level?' active-'+
+        (l==='low'?'low':l==='medium'?'med':'high'):'');
+    }
+  });
+}
+
+function switchStratMarket(id,market){
+  window._stratMarkets[id]=market;
+  window._stratTickHistories[id]=[];
+  resetStakeState(id);
+  const sigEl=document.getElementById('sig-'+id);
+  if(sigEl){
+    sigEl.className='sig-banner sig-neutral';
+    sigEl.textContent='⚖️ Switched to '+market+' — collecting...';
+  }
+  // Clear EO grid
+  const eoEl=document.getElementById('eogrid-'+id);
+  if(eoEl) eoEl.innerHTML='';
+  const epEl=document.getElementById('epct-'+id);
+  const opEl=document.getElementById('opct-'+id);
+  const efEl=document.getElementById('efill-'+id);
+  const ofEl=document.getElementById('ofill-'+id);
+  if(epEl) epEl.textContent='0%';
+  if(opEl) opEl.textContent='0%';
+  if(efEl) efEl.style.width='0%';
+  if(ofEl) ofEl.style.width='0%';
+}
+
+// ══ INJECT VOL + RISK UI INTO STRATEGIES ══════════════════════════
+function injectVolAndRisk(id){
+  const body=document.querySelector('#sitem-'+id+' .strategy-item-body');
+  if(!body) return;
+  if(document.getElementById('vol-wrap-'+id)) return;
+
+  // ── Volatility selector ──────────────────────────────────────
+  const volWrap=document.createElement('div');
+  volWrap.id='vol-wrap-'+id;
+  volWrap.innerHTML=`
+    <div class="card-title" style="margin-bottom:8px">
+      <span class="dot"></span>Market
+    </div>
+    <div class="vol-tabs" id="vol-tabs-${id}">
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V10')">V10</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V25')">V25</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V50')">V50</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V75')">V75</button>
+      <button class="vol-tab active" onclick="switchStratMarket(${id},'V100')">V100</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V10_1S')">V10(1s)</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V25_1S')">V25(1s)</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V50_1S')">V50(1s)</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V75_1S')">V75(1s)</button>
+      <button class="vol-tab" onclick="switchStratMarket(${id},'V100_1S')">V100(1s)</button>
+    </div>`;
+  body.insertBefore(volWrap,body.firstChild);
+
+  // ── Risk manager ──────────────────────────────────────────────
+  const riskWrap=document.createElement('div');
+  riskWrap.className='risk-manager';
+  riskWrap.id='risk-wrap-'+id;
+  riskWrap.innerHTML=`
+    <div class="risk-manager-title">
+      <span>⚠️</span> Risk Manager
+    </div>
+    <div class="risk-level-row">
+      <button class="risk-level-btn active-low"
+        id="risk-btn-low-${id}"
+        onclick="applyRiskToStrategy(${id},'low')">
+        🟢 Low
+      </button>
+      <button class="risk-level-btn"
+        id="risk-btn-medium-${id}"
+        onclick="applyRiskToStrategy(${id},'medium')">
+        🟡 Medium
+      </button>
+      <button class="risk-level-btn"
+        id="risk-btn-high-${id}"
+        onclick="applyRiskToStrategy(${id},'high')">
+        🔴 High
+      </button>
+    </div>
+    <div class="risk-meter-bar">
+      <div class="risk-meter-fill" id="risk-fill-${id}"
+        style="width:15%;background:var(--accent)">
+      </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;
+      font-size:.65rem;color:var(--text3);margin-bottom:8px">
+      <span>Conservative</span>
+      <span id="risk-label-${id}"
+        style="color:var(--accent);font-weight:700">
+        Low Risk
+      </span>
+      <span>Aggressive</span>
+    </div>
+    <div class="risk-stats">
+      <div class="risk-stat">
+        <div class="risk-stat-label">Max Loss</div>
+        <div class="risk-stat-val" id="risk-sl-${id}"
+          style="color:var(--accent2)">$5</div>
+      </div>
+      <div class="risk-stat">
+        <div class="risk-stat-label">Take Profit</div>
+        <div class="risk-stat-val" id="risk-tp-${id}"
+          style="color:var(--accent)">$10</div>
+      </div>
+      <div class="risk-stat">
+        <div class="risk-stat-label">Multiplier</div>
+        <div class="risk-stat-val" id="risk-mult-${id}"
+          style="color:var(--accent3)">1.5x</div>
+      </div>
+    </div>`;
+
+  // Insert before stop conditions
+  const stopCond=document.getElementById('stopcond-'+id);
+  if(stopCond) stopCond.insertAdjacentElement('beforebegin',riskWrap);
+  else body.appendChild(riskWrap);
+}
+
+// ── Override switchStratMarket to update vol tab UI ───────────────
+const _origSwitch=window.switchStratMarket;
+window.switchStratMarket=function(id,market){
+  _origSwitch&&_origSwitch(id,market);
+  // Update tab buttons
+  const tabs=document.querySelectorAll('#vol-tabs-'+id+' .vol-tab');
+  tabs.forEach(t=>{
+    t.classList.toggle('active',
+      t.textContent.trim().replace('(1s)','_1S')===market||
+      t.onclick.toString().includes("'"+market+"'"));
+  });
+};
+
+// ── Override applyRiskToStrategy to update stats UI ───────────────
+const _origApplyRisk=window.applyRiskToStrategy;
+window.applyRiskToStrategy=function(id,level){
+  _origApplyRisk&&_origApplyRisk(id,level);
+  const p=RISK_PRESETS[level];
+  if(!p) return;
+  const slEl=document.getElementById('risk-sl-'+id);
+  const tpEl=document.getElementById('risk-tp-'+id);
+  const mEl=document.getElementById('risk-mult-'+id);
+  if(slEl) slEl.textContent='$'+p.stopLoss;
+  if(tpEl) tpEl.textContent='$'+p.takeProfit;
+  if(mEl)  mEl.textContent=p.multiplier+'x';
+};
+
+// ── Wire to StratManager ──────────────────────────────────────────
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // Inject for existing strategies
+    document.querySelectorAll('.strategy-item').forEach(el=>{
+      const id=parseInt(el.id.replace('sitem-',''));
+      if(id) injectVolAndRisk(id);
+    });
+
+    // Patch add
+    const _origAdd3=StratManager.add.bind(StratManager);
+    StratManager.add=function(){
+      _origAdd3();
+      setTimeout(()=>{
+        const items=document.querySelectorAll('.strategy-item');
+        if(!items.length) return;
+        const last=items[items.length-1];
+        const id=parseInt(last.id.replace('sitem-',''));
+        if(!id) return;
+        const old=document.getElementById('stopcond-'+id);
+        if(old) old.remove();
+        injectStopConditions(id);
+        injectVolAndRisk(id);
+      },200);
+    };
+
+    // Route ticks per strategy market
+    const _origSim2=window.simulatePrice;
+    window.simulatePrice=function(){
+      if(window.derivWS&&window.derivWS.token) return;
+      const vol=VOLATILITY[state.market]||0.25;
+      state.prevPrice=state.price;
+      state.price=Math.max(10,state.price+(Math.random()-0.5)*2*vol);
+      const ps=state.price.toFixed(2);
+      state.lastDigit=parseInt(ps[ps.length-1]);
+      state.tickCount++;
+      state.chartData.push(state.price);
+      if(state.chartData.length>500) state.chartData.shift();
+      // Feed strategies matching current market
+      document.querySelectorAll('.strategy-item').forEach(el=>{
+        const id=parseInt(el.id.replace('sitem-',''));
+        if(!id) return;
+        const sm=window._stratMarkets[id]||'V100';
+        if(sm===state.market){
+          if(!window._stratTickHistories[id])
+            window._stratTickHistories[id]=[];
+          window._stratTickHistories[id].push(state.lastDigit);
+          if(window._stratTickHistories[id].length>500)
+            window._stratTickHistories[id].shift();
+          updateStrategyUI(id);
+        }
+      });
+      updatePriceUI();updateChart();updateLDP();
+      updateTickLog();updateTagTick();
+      if(window.LDPData) LDPData.push(state.lastDigit);
+      if(window.LDPUi){
+        LDPUi.render(state.selectedDigit);
+        LDPUi.flashDigit(state.lastDigit);
+      }
+      updateActiveStratCount();
+    };
+
+    console.log('[Vol+Risk] Injected ✅');
+  },2000);
+});
