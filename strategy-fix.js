@@ -1572,3 +1572,111 @@ window.addEventListener('load',function(){
     console.log('[Market Fix] ✅');
   },2500);
 });
+
+// ══ FIX VOLATILITY SWITCHING + SIGNAL TEXT ════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // ── Fix vol tab click ─────────────────────────────────────
+    window.switchStratMarket=function(id,market){
+      window._stratMarkets[id]=market;
+      window._stratTickHistories[id]=[];
+      resetStakeState(id);
+
+      // Update active tab
+      document.querySelectorAll('#vol-tabs-'+id+' .vol-tab')
+        .forEach(t=>{
+          const tm=t.getAttribute('data-market');
+          t.classList.toggle('active',tm===market);
+        });
+
+      // Update main market selector to match
+      const mainSel=document.getElementById('marketSelect');
+      if(mainSel&&mainSel.value!==market){
+        mainSel.value=market;
+        state.market=market;
+        // Reset chart
+        state.chartData=[];
+        state.price=100+Math.random()*1500;
+      }
+
+      // Clear EO grid
+      const eoEl=document.getElementById('eogrid-'+id);
+      if(eoEl) eoEl.innerHTML='';
+      const efEl=document.getElementById('efill-'+id);
+      const ofEl=document.getElementById('ofill-'+id);
+      const epEl=document.getElementById('epct-'+id);
+      const opEl=document.getElementById('opct-'+id);
+      if(efEl) efEl.style.width='0%';
+      if(ofEl) ofEl.style.width='0%';
+      if(epEl) epEl.textContent='0%';
+      if(opEl) opEl.textContent='0%';
+
+      // Reset signal
+      const sigEl=document.getElementById('sig-'+id);
+      if(sigEl){
+        sigEl.className='sig-banner sig-neutral';
+        sigEl.textContent='⚖️ Switched to '+market+' — collecting ticks...';
+      }
+
+      // Subscribe WS to new market
+      if(window.derivWS&&window.derivWS.connected){
+        window.derivWS.subscribeTicks(SYMBOL_MAP[market]||'R_100');
+      }
+    };
+
+    // ── Fix vol tabs to use data-market attribute ─────────────
+    document.querySelectorAll('.strategy-item').forEach(el=>{
+      const id=parseInt(el.id.replace('sitem-',''));
+      if(!id) return;
+      const tabs=document.querySelectorAll('#vol-tabs-'+id+' .vol-tab');
+      tabs.forEach(t=>{
+        // Extract market from onclick
+        const match=t.getAttribute('onclick')
+          ?.match(/'([^']+)'\)/);
+        if(match) t.setAttribute('data-market',match[1]);
+      });
+    });
+
+    // ── Fix signal text showing wrong values ──────────────────
+    const _origGetSignal=window.getStratSignal;
+    window.getStratSignal=function(id){
+      const hist=window._stratTickHistories[id]||[];
+      const sel=document.querySelectorAll(
+        '#sitem-'+id+' .logic-select');
+      const ifLastEl=document.querySelector(
+        '#sitem-'+id+' .logic-num');
+      const ifLast=ifLastEl?parseInt(ifLastEl.value)||3:3;
+      const ifType=sel[2]?sel[2].value:'odd';
+      const tradeOn=sel[3]?sel[3].value:'even';
+      if(hist.length<ifLast+1)
+        return{sig:'wait',ifLast,ifType,tradeOn};
+      const recent=hist.slice(-(ifLast+1));
+      const prevN=recent.slice(0,ifLast);
+      const lastTick=recent[recent.length-1];
+      const allPrev=prevN.every(d=>
+        ifType==='even'?d%2===0:d%2!==0);
+      const lastIsTarget=tradeOn==='even'
+        ?lastTick%2===0:lastTick%2!==0;
+      return{
+        sig:allPrev&&lastIsTarget?'enter':'wait',
+        ifLast,ifType,tradeOn
+      };
+    };
+
+    // ── Hide old market dropdown inside strategy ──────────────
+    const s=document.createElement('style');
+    s.textContent=`
+      .strategy-item .select-wrap:has(#marketSelect){
+        display:none!important;
+      }
+      /* Hide old market row inside strategy body */
+      .strategy-item .logic-row:has(select[id^="strat-vol"]){
+        display:none!important;
+      }
+    `;
+    document.head.appendChild(s);
+
+    console.log('[Vol Fix] ✅');
+  },2200);
+});
