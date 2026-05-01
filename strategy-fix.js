@@ -1473,3 +1473,102 @@ window.addEventListener('load',function(){
     console.log('[Vol Fix] ✅');
   },2200);
 });
+
+// ══ REMOVE OLD DROPDOWN + FIX SWITCHING ══════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // ── Hide old MARKET dropdown row inside strategy ───────────
+    const s=document.createElement('style');
+    s.textContent=`
+      .strategy-item .logic-row:has(select[id^="strat-vol"]),
+      .strategy-item .select-wrap+.logic-row,
+      .strategy-item .logic-row:first-child:has(select){
+        display:none!important;
+      }
+      /* Hide any label+select row showing "MARKET Volatility..." */
+      .strategy-item-body > .logic-row:nth-child(2){
+        display:none!important;
+      }
+    `;
+    document.head.appendChild(s);
+
+    // ── Remove old market rows from DOM completely ─────────────
+    document.querySelectorAll('.strategy-item').forEach(el=>{
+      const id=parseInt(el.id.replace('sitem-',''));
+      if(!id) return;
+      // Find and remove old market select rows
+      el.querySelectorAll('.logic-row').forEach(row=>{
+        const sel=row.querySelector('select');
+        if(sel&&(sel.id.includes('strat-vol')||
+           sel.textContent.includes('Volatility'))){
+          row.remove();
+        }
+      });
+    });
+
+    // ── Fix vol tab switching ─────────────────────────────────
+    window.switchStratMarket=function(id,market){
+      window._stratMarkets[id]=market;
+      window._stratTickHistories[id]=[];
+      resetStakeState(id);
+
+      // Update active tab UI
+      document.querySelectorAll('#vol-tabs-'+id+' .vol-tab')
+        .forEach(t=>{
+          const onclick=t.getAttribute('onclick')||'';
+          const isActive=onclick.includes("'"+market+"'");
+          t.classList.toggle('active',isActive);
+        });
+
+      // Update global market state
+      state.market=market;
+      const mainSel=document.getElementById('marketSelect');
+      if(mainSel) mainSel.value=market;
+
+      // Reset price + chart for new market
+      const prices={
+        V10:500,V25:600,V50:700,
+        V75:800,V100:1400,
+        V10_1S:500,V25_1S:600,V50_1S:700,
+        V75_1S:800,V100_1S:1400,
+      };
+      state.price=prices[market]||1000;
+      state.chartData=[];
+      state.digitCounts=new Array(10).fill(0);
+      state.tickCount=0;
+
+      // Update market tag
+      const tagEl=document.getElementById('tagMarket');
+      if(tagEl) tagEl.textContent=market;
+
+      // Subscribe WS if connected
+      if(window.derivWS&&window.derivWS.connected){
+        window.derivWS.subscribeTicks(
+          SYMBOL_MAP[market]||'R_100');
+      }
+
+      // Clear EO grid + reset signal
+      const eoEl=document.getElementById('eogrid-'+id);
+      if(eoEl) eoEl.innerHTML='';
+      ['epct','opct','efill','ofill'].forEach(p=>{
+        const el=document.getElementById(p+'-'+id);
+        if(el){
+          if(p.includes('fill')) el.style.width='0%';
+          else el.textContent='0%';
+        }
+      });
+      const sigEl=document.getElementById('sig-'+id);
+      if(sigEl){
+        sigEl.className='sig-banner sig-neutral';
+        sigEl.textContent='⚖️ '+market+' — collecting ticks...';
+      }
+
+      showToast(true,'MARKET',0,0);
+      document.getElementById('toastMsg').textContent=
+        '✓ Strategy #'+id+' → '+market;
+    };
+
+    console.log('[Market Fix] ✅');
+  },2500);
+});
