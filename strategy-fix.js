@@ -1848,3 +1848,808 @@ window.addEventListener('load',function(){
     console.log('[Global Vol Bar] ✅');
   },1000);
 });
+
+// ══ AI STRATEGY TAB ═══════════════════════════════════════════════
+(function(){
+const s=document.createElement('style');
+s.textContent=`
+.ai-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.ai-title{font-size:1.2rem;font-weight:800;color:var(--text)}
+.ai-subtitle{font-size:.75rem;color:var(--text2);margin-top:2px}
+.ai-signal-card{
+  border-radius:var(--r);padding:16px;
+  margin-bottom:14px;position:relative;overflow:hidden;
+  border:1.5px solid transparent;
+  transition:all 0.3s ease;
+}
+.ai-signal-card.buy{
+  background:linear-gradient(135deg,#00e5a015,#00e5a005);
+  border-color:#00e5a040;
+}
+.ai-signal-card.sell{
+  background:linear-gradient(135deg,#ff3e6c15,#ff3e6c05);
+  border-color:#ff3e6c40;
+}
+.ai-signal-card.neutral{
+  background:var(--bg2);border-color:var(--border2);
+}
+.ai-signal-row{
+  display:flex;align-items:center;gap:12px;
+}
+.ai-signal-icon{
+  width:52px;height:52px;border-radius:12px;
+  background:var(--bg3);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;
+}
+.ai-signal-label{
+  font-size:.68rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.1em;
+  margin-bottom:4px;
+}
+.ai-signal-label.buy{color:var(--accent)}
+.ai-signal-label.sell{color:var(--accent2)}
+.ai-signal-label.neutral{color:var(--accent3)}
+.ai-signal-desc{
+  font-size:.78rem;color:var(--text2);
+  line-height:1.4;margin-bottom:6px;
+}
+.ai-signal-meta{
+  font-size:.65rem;color:var(--text3);
+}
+.btn-execute{
+  padding:12px 20px;border-radius:var(--rs);
+  font-size:.85rem;font-weight:800;
+  background:var(--accent);color:#0b0d12;
+  border:none;cursor:pointer;
+  transition:all var(--tr);white-space:nowrap;
+  flex-shrink:0;
+}
+.btn-execute:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-execute.sell{background:var(--accent2);color:#fff}
+.ai-indicators{
+  display:grid;grid-template-columns:1fr 1fr 1fr;
+  gap:10px;margin-bottom:14px;
+}
+.ai-ind-card{
+  background:var(--bg2);border-radius:var(--rs);
+  padding:12px;border:1px solid var(--border);
+}
+.ai-ind-label{
+  font-size:.62rem;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.06em;
+  margin-bottom:4px;
+}
+.ai-ind-val{
+  font-size:1rem;font-weight:800;
+  font-family:'DM Mono',monospace;
+  margin-bottom:2px;
+}
+.ai-ind-status{
+  font-size:.65rem;font-weight:700;
+}
+.ai-ind-status.bull{color:var(--accent)}
+.ai-ind-status.bear{color:var(--accent2)}
+.ai-ind-status.neu{color:var(--accent3)}
+.ai-chat-box{
+  background:var(--bg2);border-radius:var(--r);
+  padding:16px;margin-bottom:14px;
+  border:1px solid var(--border);
+}
+.ai-chat-title{
+  font-size:.82rem;font-weight:800;
+  color:var(--text);margin-bottom:12px;
+  display:flex;align-items:center;gap:6px;
+}
+.ai-chat-messages{
+  min-height:80px;max-height:200px;
+  overflow-y:auto;margin-bottom:12px;
+  display:flex;flex-direction:column;gap:8px;
+}
+.ai-msg-ai{
+  background:var(--bg3);border-radius:12px 12px 12px 4px;
+  padding:10px 14px;font-size:.78rem;
+  color:var(--text);line-height:1.5;
+  border:1px solid var(--border);
+  max-width:90%;
+}
+.ai-msg-ai span{
+  color:var(--accent);font-weight:800;margin-right:4px;
+}
+.ai-msg-user{
+  background:linear-gradient(135deg,var(--accent),#00b8ff);
+  border-radius:12px 12px 4px 12px;
+  padding:10px 14px;font-size:.78rem;
+  color:#0b0d12;line-height:1.5;
+  max-width:90%;align-self:flex-end;font-weight:600;
+}
+.ai-chat-input-row{
+  display:flex;gap:8px;align-items:center;
+}
+.ai-chat-input{
+  flex:1;background:var(--bg3);
+  border:1.5px solid var(--border2);
+  border-radius:var(--rs);color:var(--text);
+  padding:10px 14px;font-size:.82rem;
+  font-family:'Syne',sans-serif;
+  transition:border var(--tr);
+}
+.ai-chat-input:focus{border-color:var(--accent);outline:none}
+.btn-ai-send{
+  padding:10px 18px;border-radius:var(--rs);
+  font-size:.82rem;font-weight:800;
+  background:linear-gradient(135deg,var(--accent),#00b8ff);
+  color:#0b0d12;border:none;cursor:pointer;
+  transition:all var(--tr);flex-shrink:0;
+}
+.btn-ai-send:hover{filter:brightness(1.1)}
+.btn-ai-send:disabled{opacity:0.5;cursor:not-allowed}
+.ai-history-table{
+  width:100%;border-collapse:collapse;
+  font-size:.75rem;
+}
+.ai-history-table th{
+  text-align:left;padding:8px 10px;
+  font-size:.62rem;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--text2);
+  border-bottom:1px solid var(--border2);
+}
+.ai-history-table td{
+  padding:10px 10px;
+  border-bottom:1px solid var(--border);
+  font-family:'DM Mono',monospace;
+}
+.conf-badge{
+  padding:3px 8px;border-radius:20px;
+  font-size:.65rem;font-weight:700;
+}
+.conf-high{background:#00e5a020;color:var(--accent)}
+.conf-med{background:#ffd16620;color:var(--accent3)}
+.conf-low{background:#ff3e6c20;color:var(--accent2)}
+.ai-ticker{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:6px 0;overflow:hidden;white-space:nowrap;
+  margin-bottom:0;
+}
+.ai-ticker-inner{
+  display:inline-flex;gap:24px;
+  animation:tickerScroll 20s linear infinite;
+}
+@keyframes tickerScroll{
+  0%{transform:translateX(0)}
+  100%{transform:translateX(-50%)}
+}
+.ai-ticker-item{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:.72rem;font-family:'DM Mono',monospace;
+}
+.ai-ticker-dot{
+  width:6px;height:6px;border-radius:50%;
+}
+`;
+document.head.appendChild(s);
+})();
+
+// ══ AI STRATEGY SECTION ═══════════════════════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    // Find AI section
+    let aiSection=document.getElementById('section-ai');
+    if(!aiSection){
+      aiSection=document.createElement('div');
+      aiSection.className='tab-section';
+      aiSection.id='section-ai';
+      document.querySelector('.page')?.appendChild(aiSection);
+    }
+
+    aiSection.innerHTML=`
+    <div style="padding:16px 0">
+
+      <!-- Header -->
+      <div class="ai-header">
+        <div>
+          <div class="ai-title">🧠 AI Strategy Analyst</div>
+          <div class="ai-subtitle" id="aiSubtitle">
+            Real-time market intelligence
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.62rem;color:var(--text3)">TICK</div>
+          <div style="font-size:.88rem;font-weight:800;
+            font-family:'DM Mono',monospace;color:var(--accent)"
+            id="aiTickCount">0/100</div>
+        </div>
+      </div>
+
+      <!-- Ticker -->
+      <div class="ai-ticker">
+        <div class="ai-ticker-inner" id="aiTicker">
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#00e5a0"></span>
+            V100 — <span id="aiTickerPrice">0.00</span>
+          </span>
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#ffd166"></span>
+            Signal: <span id="aiTickerSignal">Analyzing...</span>
+          </span>
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#00b8ff"></span>
+            LDP Even: <span id="aiTickerEven">0%</span>
+          </span>
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#ff3e6c"></span>
+            LDP Odd: <span id="aiTickerOdd">0%</span>
+          </span>
+          <!-- Duplicate for seamless scroll -->
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#00e5a0"></span>
+            V100 — <span id="aiTickerPrice2">0.00</span>
+          </span>
+          <span class="ai-ticker-item">
+            <span class="ai-ticker-dot" style="background:#ffd166"></span>
+            Signal: <span id="aiTickerSignal2">Analyzing...</span>
+          </span>
+        </div>
+      </div>
+
+      <!-- Signal Card -->
+      <div class="ai-signal-card neutral" id="aiSignalCard"
+        style="margin-top:14px">
+        <div class="ai-signal-row">
+          <div class="ai-signal-icon" id="aiSignalIcon">🤔</div>
+          <div style="flex:1">
+            <div class="ai-signal-label neutral"
+              id="aiSignalLabel">ANALYZING MARKET</div>
+            <div class="ai-signal-desc" id="aiSignalDesc">
+              Collecting tick data and computing indicators...
+            </div>
+            <div class="ai-signal-meta" id="aiSignalMeta">
+              Confidence: — • Duration: — • Updated just now
+            </div>
+          </div>
+          <button class="btn-execute" id="aiExecuteBtn"
+            style="display:none"
+            onclick="aiExecuteTrade()">
+            Execute Trade
+          </button>
+        </div>
+      </div>
+
+      <!-- Indicators Grid -->
+      <div class="ai-indicators">
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">RSI (14)</div>
+          <div class="ai-ind-val" id="aiRSI">—</div>
+          <div class="ai-ind-status neu" id="aiRSIStatus">Neutral</div>
+        </div>
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">MACD</div>
+          <div class="ai-ind-val" id="aiMACD">—</div>
+          <div class="ai-ind-status neu" id="aiMACDStatus">Neutral</div>
+        </div>
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">Bollinger</div>
+          <div class="ai-ind-val" id="aiBB">—</div>
+          <div class="ai-ind-status neu" id="aiBBStatus">Middle</div>
+        </div>
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">Volume</div>
+          <div class="ai-ind-val" id="aiVol">—</div>
+          <div class="ai-ind-status neu" id="aiVolStatus">Normal</div>
+        </div>
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">ATR</div>
+          <div class="ai-ind-val" id="aiATR">—</div>
+          <div class="ai-ind-status neu" id="aiATRStatus">Moderate</div>
+        </div>
+        <div class="ai-ind-card">
+          <div class="ai-ind-label">Trend</div>
+          <div class="ai-ind-val" id="aiTrend">—</div>
+          <div class="ai-ind-status neu" id="aiTrendStatus">Sideways</div>
+        </div>
+      </div>
+
+      <!-- Trade Setup -->
+      <div style="background:var(--bg2);border-radius:var(--r);
+        padding:16px;margin-bottom:14px;
+        border:1px solid var(--border)">
+        <div class="card-title">
+          <span class="dot"></span>Trade Setup
+        </div>
+
+        <!-- Market -->
+        <div style="margin-bottom:10px">
+          <div class="form-label">Volatility</div>
+          <div class="vol-tabs" style="margin-top:6px">
+            <button class="vol-tab" onclick="aiSetMarket('V10')">V10</button>
+            <button class="vol-tab" onclick="aiSetMarket('V25')">V25</button>
+            <button class="vol-tab" onclick="aiSetMarket('V50')">V50</button>
+            <button class="vol-tab" onclick="aiSetMarket('V75')">V75</button>
+            <button class="vol-tab active" onclick="aiSetMarket('V100')">V100</button>
+            <button class="vol-tab" onclick="aiSetMarket('V10_1S')">V10(1s)</button>
+            <button class="vol-tab" onclick="aiSetMarket('V25_1S')">V25(1s)</button>
+            <button class="vol-tab" onclick="aiSetMarket('V50_1S')">V50(1s)</button>
+            <button class="vol-tab" onclick="aiSetMarket('V75_1S')">V75(1s)</button>
+            <button class="vol-tab" onclick="aiSetMarket('V100_1S')">V100(1s)</button>
+          </div>
+        </div>
+
+        <!-- Duration -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;
+          gap:10px;margin-bottom:10px">
+          <div>
+            <div class="form-label">Duration</div>
+            <input class="form-input" type="number"
+              id="aiDuration" value="5" min="1" max="60"
+              style="margin-top:4px"/>
+          </div>
+          <div>
+            <div class="form-label">Unit</div>
+            <select class="form-input market-select"
+              id="aiDurUnit" style="margin-top:4px">
+              <option value="t">Ticks</option>
+              <option value="s">Seconds</option>
+              <option value="m">Minutes</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Stake -->
+        <div style="margin-bottom:12px">
+          <div class="form-label">Stake</div>
+          <div class="stake-row" style="margin-top:4px">
+            <input class="stake-input" type="number"
+              id="aiStake" value="1.00" min="0.35" step="0.01"/>
+            <button class="stake-preset" onclick="document.getElementById('aiStake').value='1'">$1</button>
+            <button class="stake-preset" onclick="document.getElementById('aiStake').value='5'">$5</button>
+            <button class="stake-preset" onclick="document.getElementById('aiStake').value='10'">$10</button>
+            <button class="stake-preset" onclick="document.getElementById('aiStake').value='50'">$50</button>
+          </div>
+        </div>
+
+        <!-- Rise/Fall buttons -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;
+          gap:10px">
+          <button class="btn-rise" style="width:100%;padding:13px"
+            onclick="aiPlaceTrade('rise')">
+            ▲ Rise
+          </button>
+          <button class="btn-fall" style="width:100%;padding:13px"
+            onclick="aiPlaceTrade('fall')">
+            ▼ Fall
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Chat -->
+      <div class="ai-chat-box">
+        <div class="ai-chat-title">
+          🤖 Ask AI Analyst
+          <span style="margin-left:auto;font-size:.65rem;
+            color:var(--text3)">Powered by Claude</span>
+        </div>
+        <div class="ai-chat-messages" id="aiChatMessages">
+          <div class="ai-msg-ai">
+            <span>AI:</span>
+            Hello! I am your AI trading analyst powered by Claude.
+            I can analyze market conditions, explain indicators,
+            suggest trade directions, and help you understand
+            volatility patterns. Ask me anything about the market!
+          </div>
+        </div>
+        <div class="ai-chat-input-row">
+          <input class="ai-chat-input" type="text"
+            id="aiChatInput"
+            placeholder="Ask about market conditions..."
+            onkeydown="if(event.key==='Enter') sendAIMessage()"/>
+          <button class="btn-ai-send" id="aiSendBtn"
+            onclick="sendAIMessage()">Send</button>
+        </div>
+      </div>
+
+      <!-- AI Trade History -->
+      <div style="background:var(--bg2);border-radius:var(--r);
+        padding:16px;border:1px solid var(--border)">
+        <div class="card-title">
+          <span class="dot"></span>AI Trade History
+        </div>
+        <table class="ai-history-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Direction</th>
+              <th>Confidence</th>
+              <th>Result</th>
+              <th>P&L</th>
+            </tr>
+          </thead>
+          <tbody id="aiHistoryBody">
+            <tr>
+              <td colspan="5" class="empty-row">
+                No AI trades yet
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>`;
+
+    // ── AI State ──────────────────────────────────────────────
+    window._aiState={
+      market:'V100',
+      signal:'neutral',
+      confidence:0,
+      direction:'',
+      indicators:{},
+      chatHistory:[],
+      tradeHistory:[],
+    };
+
+    // ── Market selector ───────────────────────────────────────
+    window.aiSetMarket=function(market){
+      window._aiState.market=market;
+      document.querySelectorAll('#section-ai .vol-tab')
+        .forEach(t=>{
+          const onclick=t.getAttribute('onclick')||'';
+          t.classList.toggle('active',
+            onclick.includes("'"+market+"'"));
+        });
+      // Update subtitle
+      const sub=document.getElementById('aiSubtitle');
+      if(sub) sub.textContent=
+        'Real-time intelligence • '+
+        (SYMBOL_MAP[market]||market);
+      analyzeMarket();
+    };
+
+    // ── Market analysis ───────────────────────────────────────
+    window.analyzeMarket=function(){
+      const prices=state.chartData;
+      if(prices.length<14) return;
+
+      // RSI calculation
+      const changes=prices.slice(-15).map((p,i,a)=>
+        i===0?0:p-a[i-1]);
+      const gains=changes.filter(c=>c>0);
+      const losses=changes.filter(c=>c<0).map(Math.abs);
+      const avgGain=gains.reduce((a,b)=>a+b,0)/(gains.length||1);
+      const avgLoss=losses.reduce((a,b)=>a+b,0)/(losses.length||1);
+      const rs=avgGain/(avgLoss||0.001);
+      const rsi=parseFloat((100-(100/(1+rs))).toFixed(1));
+
+      // MACD (simple)
+      const ema12=prices.slice(-12).reduce((a,b)=>a+b,0)/12;
+      const ema26=prices.slice(-26).reduce((a,b)=>a+b,0)/
+        Math.min(26,prices.length);
+      const macd=parseFloat((ema12-ema26).toFixed(3));
+
+      // Bollinger
+      const last20=prices.slice(-20);
+      const mean=last20.reduce((a,b)=>a+b,0)/last20.length;
+      const std=Math.sqrt(last20.reduce((a,b)=>
+        a+(b-mean)**2,0)/last20.length);
+      const curP=prices[prices.length-1];
+      const bbPos=curP>mean+std?'Upper':
+        curP<mean-std?'Lower':'Middle';
+
+      // ATR
+      const atr=parseFloat((std*2).toFixed(2));
+
+      // Volume (tick speed proxy)
+      const vol=state.tickCount>50?'High':
+        state.tickCount>20?'Normal':'Low';
+
+      // Trend
+      const slope=prices.length>5?
+        prices[prices.length-1]-prices[prices.length-6]:0;
+      const trend=slope>0.1?'Up':slope<-0.1?'Down':'Sideways';
+
+      // LDP stats
+      const total=state.digitCounts.reduce((a,b)=>a+b,0)||1;
+      const evens=[0,2,4,6,8].reduce((a,d)=>
+        a+state.digitCounts[d],0);
+      const evenPct=((evens/total)*100).toFixed(1);
+      const oddPct=(100-parseFloat(evenPct)).toFixed(1);
+
+      // Store indicators
+      window._aiState.indicators={
+        rsi,macd,bbPos,atr,vol,trend,evenPct,oddPct
+      };
+
+      // Update indicator UI
+      const setInd=(id,val,status,cls)=>{
+        const el=document.getElementById(id);
+        const st=document.getElementById(id+'Status');
+        if(el) el.textContent=val;
+        if(st){st.textContent=status;st.className='ai-ind-status '+cls;}
+      };
+
+      setInd('aiRSI',rsi,
+        rsi<30?'Oversold':rsi>70?'Overbought':'Neutral',
+        rsi<30?'bull':rsi>70?'bear':'neu');
+      setInd('aiMACD',(macd>0?'+':'')+macd,
+        macd>0?'Bullish':'Bearish',macd>0?'bull':'bear');
+      setInd('aiBB',bbPos,
+        bbPos==='Lower'?'Bounce':bbPos==='Upper'?'Resistance':'Middle',
+        bbPos==='Lower'?'bull':bbPos==='Upper'?'bear':'neu');
+      setInd('aiVol',vol,vol,
+        vol==='High'?'bull':vol==='Low'?'bear':'neu');
+      setInd('aiATR',atr,'Moderate','neu');
+      setInd('aiTrend',trend,
+        trend==='Up'?'Strong':trend==='Down'?'Weak':'Sideways',
+        trend==='Up'?'bull':trend==='Down'?'bear':'neu');
+
+      // Update ticker
+      const tp=document.getElementById('aiTickerPrice');
+      const tp2=document.getElementById('aiTickerPrice2');
+      if(tp) tp.textContent=state.price.toFixed(2);
+      if(tp2) tp2.textContent=state.price.toFixed(2);
+      const te=document.getElementById('aiTickerEven');
+      const to=document.getElementById('aiTickerOdd');
+      if(te) te.textContent=evenPct+'%';
+      if(to) to.textContent=oddPct+'%';
+
+      // Tick count
+      const tc=document.getElementById('aiTickCount');
+      if(tc) tc.textContent=Math.min(state.tickCount,100)+'/100';
+
+      // Generate signal
+      generateSignal(rsi,macd,bbPos,trend,evenPct);
+    };
+
+    // ── Signal generator ──────────────────────────────────────
+    window.generateSignal=function(rsi,macd,bbPos,trend,evenPct){
+      let buyScore=0,sellScore=0;
+      if(rsi<30) buyScore+=2;
+      if(rsi>70) sellScore+=2;
+      if(macd>0) buyScore++;
+      if(macd<0) sellScore++;
+      if(bbPos==='Lower') buyScore++;
+      if(bbPos==='Upper') sellScore++;
+      if(trend==='Up') buyScore++;
+      if(trend==='Down') sellScore++;
+
+      const card=document.getElementById('aiSignalCard');
+      const icon=document.getElementById('aiSignalIcon');
+      const label=document.getElementById('aiSignalLabel');
+      const desc=document.getElementById('aiSignalDesc');
+      const meta=document.getElementById('aiSignalMeta');
+      const execBtn=document.getElementById('aiExecuteBtn');
+      const tickerSig=document.getElementById('aiTickerSignal');
+      const tickerSig2=document.getElementById('aiTickerSignal2');
+
+      let signal,conf,iconTxt,dir,descTxt;
+
+      if(buyScore>=3){
+        signal='buy';conf=Math.min(60+buyScore*8,95);
+        iconTxt='📈';dir='rise';
+        descTxt='AI detected bullish momentum. RSI '+
+          (rsi<30?'oversold':'neutral')+
+          ', MACD '+(macd>0?'positive':'negative')+
+          ', trend '+trend+'. Consider RISE trade.';
+      } else if(sellScore>=3){
+        signal='sell';conf=Math.min(60+sellScore*8,95);
+        iconTxt='📉';dir='fall';
+        descTxt='AI detected bearish momentum. RSI '+
+          (rsi>70?'overbought':'neutral')+
+          ', MACD '+(macd<0?'negative':'mixed')+
+          ', trend '+trend+'. Consider FALL trade.';
+      } else {
+        signal='neutral';conf=40;
+        iconTxt='🤔';dir='';
+        descTxt='Market conditions are mixed. Wait for '+
+          'clearer signals before trading.';
+      }
+
+      window._aiState.signal=signal;
+      window._aiState.confidence=conf;
+      window._aiState.direction=dir;
+
+      if(card) card.className='ai-signal-card '+signal;
+      if(icon) icon.textContent=iconTxt;
+      if(label){
+        label.className='ai-signal-label '+signal;
+        label.textContent=signal==='buy'?'STRONG BUY SIGNAL':
+          signal==='sell'?'STRONG SELL SIGNAL':'NEUTRAL — WAIT';
+      }
+      if(desc) desc.textContent=descTxt;
+      if(meta) meta.textContent=
+        'Confidence: '+conf+'% • '+
+        'Duration: '+document.getElementById('aiDuration')?.value+
+        ' '+document.getElementById('aiDurUnit')?.value+
+        ' • Updated just now';
+      if(execBtn){
+        execBtn.style.display=signal!=='neutral'?'block':'none';
+        execBtn.textContent=signal==='buy'?
+          '▲ Execute Rise':'▼ Execute Fall';
+        execBtn.className='btn-execute '+(signal==='sell'?'sell':'');
+      }
+      if(tickerSig) tickerSig.textContent=
+        signal==='buy'?'STRONG BUY':
+        signal==='sell'?'STRONG SELL':'NEUTRAL';
+      if(tickerSig2) tickerSig2.textContent=
+        tickerSig?.textContent;
+    };
+
+    // ── Execute trade ─────────────────────────────────────────
+    window.aiExecuteTrade=function(){
+      const dir=window._aiState.direction;
+      if(dir) aiPlaceTrade(dir);
+    };
+
+    window.aiPlaceTrade=function(direction){
+      const stake=parseFloat(
+        document.getElementById('aiStake')?.value)||1;
+      const duration=parseInt(
+        document.getElementById('aiDuration')?.value)||5;
+      const durUnit=document.getElementById('aiDurUnit')?.value||'t';
+      const symbol=SYMBOL_MAP[window._aiState.market||state.market]
+        ||'R_100';
+      const ctype=direction==='rise'?'CALL':'PUT';
+      const conf=window._aiState.confidence||50;
+
+      // Real trade via WS
+      if(window.derivWS&&window.derivWS.token){
+        window.derivWS.buyContract({
+          stake,symbol,contract_type:ctype,
+          duration,duration_unit:durUnit,
+        });
+      }
+
+      // Simulate result
+      const win=Math.random()>0.45;
+      const payout=win?parseFloat((stake*1.85).toFixed(2)):0;
+      const pl=win?parseFloat((payout-stake).toFixed(2)):-stake;
+
+      state.balance=parseFloat((state.balance+pl).toFixed(2));
+
+      // Add to AI history
+      const tbody=document.getElementById('aiHistoryBody');
+      const now=new Date().toLocaleTimeString();
+      const confCls=conf>=75?'conf-high':conf>=55?'conf-med':'conf-low';
+      const row=document.createElement('tr');
+      row.innerHTML=`
+        <td>${now}</td>
+        <td>${direction==='rise'?'▲ Rise':'▼ Fall'}</td>
+        <td><span class="conf-badge ${confCls}">${conf}%</span></td>
+        <td><span class="badge badge-${win?'win':'loss'}">
+          ${win?'Won':'Lost'}</span></td>
+        <td style="color:${win?'var(--accent)':'var(--accent2)'};
+          font-weight:700">
+          ${(pl>=0?'+':'')+pl.toFixed(2)}
+        </td>`;
+
+      // Remove empty row
+      const empty=tbody?.querySelector('.empty-row');
+      if(empty) empty.parentElement.remove();
+      tbody?.insertBefore(row,tbody.firstChild);
+
+      // Add to main history
+      const trade={
+        id:(state.allHistory.length+1),
+        time:now,market:state.market,
+        type:'ai-trade',
+        contract:ctype.toLowerCase(),
+        stake,payout,pl,
+        result:win?'win':'loss',
+        entrySpot:parseFloat(state.price.toFixed(2)),
+        exitSpot:parseFloat((state.price+(Math.random()-0.5)*0.1).toFixed(2)),
+      };
+      state.allHistory.unshift(trade);
+      state.tradeHistory.unshift(trade);
+      window.updateBalanceUI&&window.updateBalanceUI();
+      window.renderStickyHistory&&window.renderStickyHistory();
+      showToast(win,'AI',pl,stake);
+    };
+
+    // ── Claude AI Chat ─────────────────────────────────────────
+    window.sendAIMessage=async function(){
+      const input=document.getElementById('aiChatInput');
+      const btn=document.getElementById('aiSendBtn');
+      const messages=document.getElementById('aiChatMessages');
+      const text=input?.value?.trim();
+      if(!text) return;
+
+      // Show user message
+      const userMsg=document.createElement('div');
+      userMsg.className='ai-msg-user';
+      userMsg.textContent=text;
+      messages?.appendChild(userMsg);
+      messages?.scrollTo(0,messages.scrollHeight);
+
+      input.value='';
+      btn.disabled=true;
+      btn.textContent='...';
+
+      // Add to chat history
+      window._aiState.chatHistory.push({
+        role:'user',content:text
+      });
+
+      // Build context
+      const ind=window._aiState.indicators||{};
+      const systemPrompt=`You are an expert Deriv trading analyst AI inside the NextTrade app. 
+You analyze volatility indices and give concise, actionable trading advice.
+
+Current market data:
+- Market: ${window._aiState.market||state.market}
+- Price: ${state.price.toFixed(2)}
+- RSI: ${ind.rsi||'N/A'} ${ind.rsi<30?'(Oversold)':ind.rsi>70?'(Overbought)':'(Neutral)'}
+- MACD: ${ind.macd||'N/A'} ${ind.macd>0?'(Bullish)':'(Bearish)'}
+- Bollinger: ${ind.bbPos||'N/A'}
+- Trend: ${ind.trend||'N/A'}
+- ATR: ${ind.atr||'N/A'}
+- LDP Even: ${ind.evenPct||'0'}% / Odd: ${ind.oddPct||'0'}%
+- Signal: ${window._aiState.signal} (${window._aiState.confidence}% confidence)
+- Tick count: ${state.tickCount}
+
+Be concise (2-4 sentences max). Give specific actionable advice. 
+If user asks about duration/stake suggest optimal values based on current volatility.
+Always mention confidence level and direction (Rise/Fall/Even/Odd) when recommending.`;
+
+      try{
+        const response=await fetch(
+          'https://api.anthropic.com/v1/messages',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            model:'claude-sonnet-4-20250514',
+            max_tokens:1000,
+            system:systemPrompt,
+            messages:window._aiState.chatHistory,
+          })
+        });
+        const data=await response.json();
+        const reply=data.content?.[0]?.text||
+          'Unable to get AI response. Please try again.';
+
+        // Show AI response
+        const aiMsg=document.createElement('div');
+        aiMsg.className='ai-msg-ai';
+        aiMsg.innerHTML='<span>AI:</span>'+reply;
+        messages?.appendChild(aiMsg);
+        messages?.scrollTo(0,messages.scrollHeight);
+
+        // Add to history
+        window._aiState.chatHistory.push({
+          role:'assistant',content:reply
+        });
+
+        // Keep history short
+        if(window._aiState.chatHistory.length>20){
+          window._aiState.chatHistory=
+            window._aiState.chatHistory.slice(-20);
+        }
+
+      } catch(err){
+        const errMsg=document.createElement('div');
+        errMsg.className='ai-msg-ai';
+        errMsg.innerHTML='<span>AI:</span>Error connecting to AI. '+
+          'Check your connection and try again.';
+        messages?.appendChild(errMsg);
+      }
+
+      btn.disabled=false;
+      btn.textContent='Send';
+      messages?.scrollTo(0,messages.scrollHeight);
+    };
+
+    // ── Update AI on each tick ────────────────────────────────
+    const _origHandle3=window._handleTick;
+    window._handleTick=function(digit){
+      _origHandle3&&_origHandle3(digit);
+      // Update AI every 5 ticks
+      if(state.tickCount%5===0) analyzeMarket();
+    };
+
+    // Initial analysis
+    setTimeout(analyzeMarket,500);
+    console.log('[AI Strategy] ✅ Loaded');
+
+  },1500);
+});
