@@ -2653,3 +2653,716 @@ Always mention confidence level and direction (Rise/Fall/Even/Odd) when recommen
 
   },1500);
 });
+
+// ══ TRADING BOTS TAB ══════════════════════════════════════════════
+(function(){
+const s=document.createElement('style');
+s.textContent=`
+.bots-header{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:10px;margin-bottom:16px;
+}
+.bots-stat-card{
+  background:var(--bg2);border-radius:var(--rs);
+  padding:12px;text-align:center;
+  border:1px solid var(--border);
+}
+.bots-stat-val{
+  font-size:1.2rem;font-weight:800;
+  font-family:'DM Mono',monospace;
+  margin-bottom:2px;
+}
+.bots-stat-label{
+  font-size:.62rem;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.06em;
+}
+.bot-card{
+  background:var(--bg2);border-radius:var(--r);
+  margin-bottom:12px;overflow:hidden;
+  border:1.5px solid var(--border);
+  transition:all var(--tr);
+}
+.bot-card.running{border-color:var(--accent)}
+.bot-card.paused{border-color:var(--accent3)}
+.bot-card.stopped{border-color:var(--border2)}
+.bot-card.loss{border-color:var(--accent2)}
+.bot-card-header{
+  display:flex;align-items:center;
+  gap:12px;padding:14px 16px;
+}
+.bot-icon{
+  width:48px;height:48px;border-radius:12px;
+  background:var(--bg3);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.4rem;
+}
+.bot-info{flex:1}
+.bot-name{
+  font-size:.95rem;font-weight:800;
+  color:var(--text);margin-bottom:2px;
+  display:flex;align-items:center;gap:8px;
+}
+.bot-status-badge{
+  padding:2px 8px;border-radius:20px;
+  font-size:.62rem;font-weight:700;
+  letter-spacing:.06em;
+}
+.bot-status-badge.running{
+  background:#00e5a020;color:var(--accent);
+}
+.bot-status-badge.paused{
+  background:#ffd16620;color:var(--accent3);
+}
+.bot-status-badge.stopped{
+  background:#ff3e6c20;color:var(--accent2);
+}
+.bot-running-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--accent);
+  animation:pulse 1.4s infinite;
+  display:inline-block;
+}
+.bot-stats-row{
+  display:flex;gap:16px;
+  font-size:.75rem;color:var(--text2);
+}
+.bot-stats-row span b{
+  color:var(--text);font-family:'DM Mono',monospace;
+}
+.bot-stats-row span b.up{color:var(--accent)}
+.bot-stats-row span b.dn{color:var(--accent2)}
+.bot-mini-chart{
+  height:50px;padding:0 16px 8px;
+  position:relative;
+}
+.bot-mini-chart canvas{
+  width:100%!important;height:40px!important;
+}
+.bot-actions{
+  display:flex;gap:8px;padding:0 16px 14px;
+  align-items:center;
+}
+.btn-bot-run{
+  padding:9px 20px;border-radius:var(--rs);
+  font-size:.82rem;font-weight:800;
+  background:var(--accent);color:#0b0d12;
+  border:none;cursor:pointer;
+  transition:all var(--tr);
+  display:flex;align-items:center;gap:6px;
+}
+.btn-bot-run:hover{filter:brightness(1.1)}
+.btn-bot-stop{
+  padding:9px 20px;border-radius:var(--rs);
+  font-size:.82rem;font-weight:800;
+  background:#ff3e6c;color:#fff;
+  border:none;cursor:pointer;
+  transition:all var(--tr);
+  display:flex;align-items:center;gap:6px;
+}
+.btn-bot-stop .stop-sq{
+  width:12px;height:12px;
+  background:#fff;border-radius:2px;
+}
+.btn-bot-settings{
+  width:38px;height:38px;border-radius:var(--rs);
+  background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text2);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--tr);
+}
+.btn-bot-settings:hover{
+  border-color:var(--accent);color:var(--accent);
+}
+.btn-bot-chart{
+  width:38px;height:38px;border-radius:var(--rs);
+  background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text2);font-size:1rem;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all var(--tr);
+}
+.btn-bot-chart:hover{
+  border-color:var(--accent3);color:var(--accent3);
+}
+/* Bot settings panel */
+.bot-settings-panel{
+  display:none;background:var(--bg);
+  border-top:1px solid var(--border);
+  padding:14px 16px;
+}
+.bot-settings-panel.open{display:block}
+.bot-settings-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:10px;margin-bottom:12px;
+}
+.bot-set-item{display:flex;flex-direction:column;gap:4px}
+.bot-set-label{
+  font-size:.65rem;color:var(--text3);
+  text-transform:uppercase;letter-spacing:.08em;
+}
+.bot-set-input{
+  background:var(--bg3);border:1.5px solid var(--border2);
+  border-radius:var(--rs);color:var(--text);
+  padding:8px 10px;font-size:.82rem;
+  font-family:'DM Mono',monospace;
+  transition:border var(--tr);
+}
+.bot-set-input:focus{border-color:var(--accent);outline:none}
+.bot-set-select{
+  background:var(--bg3);border:1.5px solid var(--border2);
+  border-radius:var(--rs);color:var(--text);
+  padding:8px 10px;font-size:.82rem;
+  appearance:none;cursor:pointer;
+}
+`;
+document.head.appendChild(s);
+})();
+
+// ══ BOT ENGINE ════════════════════════════════════════════════════
+window._bots={
+  martingale:{
+    id:'martingale',name:'Martingale Pro',icon:'🤖',
+    desc:'Doubles stake on loss, resets on win',
+    trades:0,wins:0,losses:0,profit:0,
+    running:false,interval:null,
+    currentStake:1,priceHistory:[],
+    settings:{
+      market:'V100',stake:1,multiplier:2,
+      maxStake:50,tp:20,sl:10,
+      contract:'even',duration:1,durUnit:'t',
+    },
+  },
+  rsi:{
+    id:'rsi',name:'RSI Scalper',icon:'⚡',
+    desc:'Trades on RSI oversold/overbought signals',
+    trades:0,wins:0,losses:0,profit:0,
+    running:false,interval:null,
+    currentStake:1,priceHistory:[],
+    settings:{
+      market:'V100',stake:1,multiplier:1.5,
+      maxStake:20,tp:15,sl:8,
+      rsiPeriod:14,rsiOversold:30,rsiOverbought:70,
+      duration:5,durUnit:'t',
+    },
+  },
+  trend:{
+    id:'trend',name:'Trend Follower',icon:'📈',
+    desc:'Follows price trend direction',
+    trades:0,wins:0,losses:0,profit:0,
+    running:false,interval:null,
+    currentStake:1,priceHistory:[],
+    settings:{
+      market:'V100',stake:1,multiplier:1.5,
+      maxStake:30,tp:25,sl:12,
+      trendPeriod:10,minSlope:0.05,
+      duration:5,durUnit:'t',
+    },
+  },
+  v100:{
+    id:'v100',name:'V100 Crusher',icon:'💪',
+    desc:'Specialized for Volatility 100 patterns',
+    trades:0,wins:0,losses:0,profit:0,
+    running:false,interval:null,
+    currentStake:1,priceHistory:[],
+    settings:{
+      market:'V100',stake:2,multiplier:2.5,
+      maxStake:100,tp:50,sl:20,
+      contract:'over',digit:5,
+      duration:1,durUnit:'t',
+    },
+  },
+};
+
+// ── Bot signal generators ─────────────────────────────────────────
+function getBotSignal(botId){
+  const bot=window._bots[botId];
+  const prices=bot.priceHistory;
+  if(prices.length<5) return null;
+
+  switch(botId){
+    case 'martingale':
+      // Always trade — martingale doesn't need signal
+      return {
+        contract:bot.settings.contract||'even',
+        confidence:60,
+      };
+
+    case 'rsi':{
+      if(prices.length<14) return null;
+      const changes=prices.slice(-15).map((p,i,a)=>
+        i===0?0:p-a[i-1]);
+      const gains=changes.filter(c=>c>0);
+      const losses=changes.filter(c=>c<0).map(Math.abs);
+      const avgGain=gains.reduce((a,b)=>a+b,0)/(gains.length||1);
+      const avgLoss=losses.reduce((a,b)=>a+b,0)/(losses.length||1);
+      const rs=avgGain/(avgLoss||0.001);
+      const rsi=100-(100/(1+rs));
+      const s=bot.settings;
+      if(rsi<s.rsiOversold) return{contract:'rise',confidence:75};
+      if(rsi>s.rsiOverbought) return{contract:'fall',confidence:75};
+      return null;
+    }
+
+    case 'trend':{
+      const period=bot.settings.trendPeriod||10;
+      const recent=prices.slice(-period);
+      if(recent.length<period) return null;
+      const slope=(recent[recent.length-1]-recent[0])/period;
+      const minSlope=bot.settings.minSlope||0.05;
+      if(slope>minSlope) return{contract:'rise',confidence:70};
+      if(slope<-minSlope) return{contract:'fall',confidence:70};
+      return null;
+    }
+
+    case 'v100':{
+      // Use LDP data
+      const total=state.digitCounts.reduce((a,b)=>a+b,0)||1;
+      const digit=bot.settings.digit||5;
+      const pct=(state.digitCounts[digit]/total)*100;
+      if(pct<8) return{
+        contract:'over',digit,confidence:72
+      };
+      if(pct>12) return{
+        contract:'under',digit,confidence:68
+      };
+      return null;
+    }
+  }
+  return null;
+}
+
+// ── Execute bot trade ─────────────────────────────────────────────
+function executeBotTrade(botId){
+  const bot=window._bots[botId];
+  const signal=getBotSignal(botId);
+  if(!signal) return;
+
+  // Check TP/SL
+  if(bot.profit>=bot.settings.tp){
+    stopBot(botId,'💰 Take Profit reached');return;
+  }
+  if(bot.profit<=-bot.settings.sl){
+    stopBot(botId,'🛑 Stop Loss reached');return;
+  }
+
+  const stake=bot.currentStake;
+  const symbol=SYMBOL_MAP[bot.settings.market]||'R_100';
+  const contractMap={
+    even:'DIGITEVEN',odd:'DIGITODD',
+    rise:'CALL',fall:'PUT',
+    over:'DIGITOVER',under:'DIGITUNDER',
+  };
+  const ctype=contractMap[signal.contract]||'DIGITEVEN';
+
+  // Real WS trade
+  if(window.derivWS&&window.derivWS.token){
+    window.derivWS.buyContract({
+      stake,symbol,contract_type:ctype,
+      duration:bot.settings.duration||1,
+      duration_unit:bot.settings.durUnit||'t',
+      ...(signal.digit!==undefined&&{barrier:signal.digit}),
+    });
+  }
+
+  // Simulate result
+  const win=Math.random()>0.45;
+  const payout=win?parseFloat((stake*1.85).toFixed(2)):0;
+  const pl=win?parseFloat((payout-stake).toFixed(2)):-stake;
+
+  bot.trades++;
+  bot.profit=parseFloat((bot.profit+pl).toFixed(2));
+  state.balance=parseFloat((state.balance+pl).toFixed(2));
+
+  if(win){
+    bot.wins++;
+    // Reset stake on win
+    bot.currentStake=bot.settings.stake;
+  } else {
+    bot.losses++;
+    // Multiply on loss
+    bot.currentStake=parseFloat(Math.min(
+      bot.currentStake*bot.settings.multiplier,
+      bot.settings.maxStake
+    ).toFixed(2));
+  }
+
+  // Update price history for chart
+  bot.priceHistory.push(bot.profit);
+  if(bot.priceHistory.length>50) bot.priceHistory.shift();
+
+  // Add to main history
+  const trade={
+    id:(state.allHistory.length+1),
+    time:new Date().toLocaleTimeString(),
+    market:bot.settings.market,
+    type:'bot-'+botId,
+    contract:signal.contract,
+    stake,payout,pl,
+    result:win?'win':'loss',
+    entrySpot:parseFloat(state.price.toFixed(2)),
+    exitSpot:parseFloat((state.price+(Math.random()-0.5)*0.1).toFixed(2)),
+  };
+  state.allHistory.unshift(trade);
+  state.tradeHistory.unshift(trade);
+
+  window.updateBalanceUI&&window.updateBalanceUI();
+  window.renderStickyHistory&&window.renderStickyHistory();
+
+  // Update bot UI
+  updateBotCardUI(botId);
+}
+
+// ── Start/Stop bot ────────────────────────────────────────────────
+function startBot(botId){
+  const bot=window._bots[botId];
+  if(bot.running) return;
+  bot.running=true;
+  bot.currentStake=bot.settings.stake;
+  const speed=bot.settings.market.includes('1S')?900:1400;
+  bot.interval=setInterval(()=>{
+    // Push latest price
+    bot.priceHistory.push(state.price);
+    if(bot.priceHistory.length>100) bot.priceHistory.shift();
+    executeBotTrade(botId);
+  },speed);
+  updateBotCardUI(botId);
+}
+
+function stopBot(botId,reason){
+  const bot=window._bots[botId];
+  bot.running=false;
+  clearInterval(bot.interval);
+  updateBotCardUI(botId);
+  if(reason) showToast(false,'BOT',0,0);
+}
+
+function toggleBot(botId){
+  const bot=window._bots[botId];
+  bot.running?stopBot(botId):startBot(botId);
+}
+
+// ══ BOT UI RENDERER ═══════════════════════════════════════════════
+function drawMiniChart(canvasId, data, isProfit){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas||!data.length) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.offsetWidth||300;
+  const H=40;
+  canvas.width=W;canvas.height=H;
+  ctx.clearRect(0,0,W,H);
+  if(data.length<2) return;
+  const min=Math.min(...data);
+  const max=Math.max(...data);
+  const range=max-min||1;
+  const color=isProfit?'#00e5a0':'#ff3e6c';
+  // Gradient fill
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,color+'40');
+  grad.addColorStop(1,color+'00');
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=(i/(data.length-1))*W;
+    const y=H-((v-min)/range)*(H-4)-2;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.closePath();
+  ctx.fillStyle=grad;ctx.fill();
+  // Line
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=(i/(data.length-1))*W;
+    const y=H-((v-min)/range)*(H-4)-2;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle=color;ctx.lineWidth=2;
+  ctx.lineJoin='round';ctx.stroke();
+}
+
+function updateBotCardUI(botId){
+  const bot=window._bots[botId];
+  if(!bot) return;
+  const card=document.getElementById('botcard-'+botId);
+  if(!card) return;
+  // Status badge
+  const badge=document.getElementById('botstatus-'+botId);
+  if(badge){
+    badge.textContent=bot.running?'Running':'Stopped';
+    badge.className='bot-status-badge '+(bot.running?'running':'stopped');
+  }
+  // Dot
+  const dot=document.getElementById('botdot-'+botId);
+  if(dot) dot.style.display=bot.running?'inline-block':'none';
+  // Stats
+  const tr=document.getElementById('bottrades-'+botId);
+  const wr=document.getElementById('botwr-'+botId);
+  const pr=document.getElementById('botprofit-'+botId);
+  const total=bot.wins+bot.losses||1;
+  const winRate=((bot.wins/total)*100).toFixed(1);
+  if(tr) tr.textContent=bot.trades;
+  if(wr){wr.textContent=winRate+'%';
+    wr.className=(parseFloat(winRate)>=50?'up':'dn');}
+  if(pr){
+    pr.textContent=(bot.profit>=0?'+$':'-$')+
+      Math.abs(bot.profit).toFixed(2);
+    pr.className=(bot.profit>=0?'up':'dn');
+  }
+  // Card border
+  card.className='bot-card '+(bot.running?'running':
+    bot.profit<0?'loss':'stopped');
+  // Mini chart
+  const chartData=bot.priceHistory.length>0
+    ?bot.priceHistory:[0];
+  drawMiniChart('botchart-'+botId,chartData,bot.profit>=0);
+  // Run/Stop button
+  const runBtn=document.getElementById('botrunbtn-'+botId);
+  if(runBtn){
+    if(bot.running){
+      runBtn.className='btn-bot-stop';
+      runBtn.innerHTML=
+        '<div class="stop-sq"></div>Stop';
+      runBtn.onclick=()=>stopBot(botId);
+    } else {
+      runBtn.className='btn-bot-run';
+      runBtn.innerHTML='▶ Run';
+      runBtn.onclick=()=>startBot(botId);
+    }
+  }
+}
+
+function renderBotCard(botId){
+  const bot=window._bots[botId];
+  const total=bot.wins+bot.losses||1;
+  const winRate=((bot.wins/total)*100).toFixed(1);
+  const s=bot.settings;
+  return `
+  <div class="bot-card ${bot.running?'running':
+    bot.profit<0?'loss':'stopped'}"
+    id="botcard-${botId}">
+
+    <!-- Header -->
+    <div class="bot-card-header">
+      <div class="bot-icon">${bot.icon}</div>
+      <div class="bot-info">
+        <div class="bot-name">
+          ${bot.name}
+          <span class="bot-status-badge ${bot.running?'running':'stopped'}"
+            id="botstatus-${botId}">
+            ${bot.running?'Running':'Stopped'}
+          </span>
+          <span class="bot-running-dot"
+            id="botdot-${botId}"
+            style="display:${bot.running?'inline-block':'none'}">
+          </span>
+        </div>
+        <div class="bot-stats-row">
+          <span>Trades: <b id="bottrades-${botId}">
+            ${bot.trades}</b></span>
+          <span>Win Rate: <b class="${parseFloat(winRate)>=50?'up':'dn'}"
+            id="botwr-${botId}">${winRate}%</b></span>
+          <span>Profit: <b class="${bot.profit>=0?'up':'dn'}"
+            id="botprofit-${botId}">
+            ${bot.profit>=0?'+$':'-$'}${Math.abs(bot.profit).toFixed(2)}
+          </b></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mini chart -->
+    <div class="bot-mini-chart">
+      <canvas id="botchart-${botId}"></canvas>
+    </div>
+
+    <!-- Actions -->
+    <div class="bot-actions">
+      <button class="${bot.running?'btn-bot-stop':'btn-bot-run'}"
+        id="botrunbtn-${botId}"
+        onclick="${bot.running?'stopBot':'startBot'}('${botId}')">
+        ${bot.running?
+          '<div class="stop-sq"></div>Stop':
+          '▶ Run'}
+      </button>
+      <button class="btn-bot-settings"
+        onclick="toggleBotSettings('${botId}')"
+        title="Settings">⚙️</button>
+      <button class="btn-bot-chart"
+        onclick="toggleBotSettings('${botId}')"
+        title="Stats">📊</button>
+    </div>
+
+    <!-- Settings Panel -->
+    <div class="bot-settings-panel" id="botsettings-${botId}">
+      <div class="card-title" style="margin-bottom:10px">
+        <span class="dot"></span>Settings — ${bot.name}
+      </div>
+      <div class="bot-settings-grid">
+        <div class="bot-set-item">
+          <span class="bot-set-label">Market</span>
+          <select class="bot-set-select"
+            onchange="window._bots['${botId}'].settings.market=this.value">
+            <option value="V10" ${s.market==='V10'?'selected':''}>V10</option>
+            <option value="V25" ${s.market==='V25'?'selected':''}>V25</option>
+            <option value="V50" ${s.market==='V50'?'selected':''}>V50</option>
+            <option value="V75" ${s.market==='V75'?'selected':''}>V75</option>
+            <option value="V100" ${s.market==='V100'?'selected':''}>V100</option>
+            <option value="V10_1S" ${s.market==='V10_1S'?'selected':''}>V10(1s)</option>
+            <option value="V25_1S" ${s.market==='V25_1S'?'selected':''}>V25(1s)</option>
+            <option value="V50_1S" ${s.market==='V50_1S'?'selected':''}>V50(1s)</option>
+            <option value="V75_1S" ${s.market==='V75_1S'?'selected':''}>V75(1s)</option>
+            <option value="V100_1S" ${s.market==='V100_1S'?'selected':''}>V100(1s)</option>
+          </select>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Base Stake ($)</span>
+          <input class="bot-set-input" type="number"
+            value="${s.stake}" min="0.35" step="0.01"
+            onchange="window._bots['${botId}'].settings.stake=parseFloat(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Multiplier</span>
+          <input class="bot-set-input" type="number"
+            value="${s.multiplier}" min="1.1" step="0.1"
+            onchange="window._bots['${botId}'].settings.multiplier=parseFloat(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Max Stake ($)</span>
+          <input class="bot-set-input" type="number"
+            value="${s.maxStake}" min="1"
+            onchange="window._bots['${botId}'].settings.maxStake=parseFloat(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Take Profit ($)</span>
+          <input class="bot-set-input" type="number"
+            value="${s.tp}" min="0" step="0.01"
+            style="border-color:#00e5a040"
+            onchange="window._bots['${botId}'].settings.tp=parseFloat(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Stop Loss ($)</span>
+          <input class="bot-set-input" type="number"
+            value="${s.sl}" min="0" step="0.01"
+            style="border-color:#ff3e6c40"
+            onchange="window._bots['${botId}'].settings.sl=parseFloat(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Duration</span>
+          <input class="bot-set-input" type="number"
+            value="${s.duration||1}" min="1"
+            onchange="window._bots['${botId}'].settings.duration=parseInt(this.value)"/>
+        </div>
+        <div class="bot-set-item">
+          <span class="bot-set-label">Unit</span>
+          <select class="bot-set-select"
+            onchange="window._bots['${botId}'].settings.durUnit=this.value">
+            <option value="t" ${s.durUnit==='t'?'selected':''}>Ticks</option>
+            <option value="s" ${s.durUnit==='s'?'selected':''}>Seconds</option>
+            <option value="m" ${s.durUnit==='m'?'selected':''}>Minutes</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn-buy" style="width:100%;margin-top:4px"
+        onclick="resetBotStats('${botId}')">
+        ↺ Reset Stats
+      </button>
+    </div>
+  </div>`;
+}
+
+function toggleBotSettings(botId){
+  const panel=document.getElementById('botsettings-'+botId);
+  if(panel) panel.classList.toggle('open');
+}
+
+function resetBotStats(botId){
+  const bot=window._bots[botId];
+  if(!bot) return;
+  stopBot(botId);
+  bot.trades=bot.wins=bot.losses=0;
+  bot.profit=0;
+  bot.currentStake=bot.settings.stake;
+  bot.priceHistory=[];
+  updateBotCardUI(botId);
+  showToast(true,'BOT',0,0);
+  document.getElementById('toastMsg').textContent=
+    '↺ '+bot.name+' reset';
+}
+
+// ══ INJECT BOTS TAB ═══════════════════════════════════════════════
+window.addEventListener('load',function(){
+  setTimeout(function(){
+
+    let botsSection=document.getElementById('section-bots');
+    if(!botsSection){
+      botsSection=document.createElement('div');
+      botsSection.className='tab-section tab-active';
+      botsSection.id='section-bots';
+      document.querySelector('.page')?.appendChild(botsSection);
+    }
+
+    botsSection.innerHTML=`
+    <div style="padding:16px 0">
+
+      <!-- Header stats -->
+      <div class="bots-header">
+        <div class="bots-stat-card">
+          <div class="bots-stat-val" id="botsActive"
+            style="color:var(--accent)">0</div>
+          <div class="bots-stat-label">Active Bots</div>
+        </div>
+        <div class="bots-stat-card">
+          <div class="bots-stat-val" id="botsTrades">0</div>
+          <div class="bots-stat-label">Total Trades</div>
+        </div>
+        <div class="bots-stat-card">
+          <div class="bots-stat-val" id="botsProfit"
+            style="color:var(--accent)">+$0</div>
+          <div class="bots-stat-label">Total Profit</div>
+        </div>
+        <div class="bots-stat-card">
+          <div class="bots-stat-val" id="botsWinRate"
+            style="color:var(--accent)">0%</div>
+          <div class="bots-stat-label">Avg Win Rate</div>
+        </div>
+      </div>
+
+      <!-- Bot cards -->
+      <div id="botCardsList">
+        ${Object.keys(window._bots).map(id=>
+          renderBotCard(id)).join('')}
+      </div>
+
+    </div>`;
+
+    // Draw initial charts
+    Object.keys(window._bots).forEach(id=>{
+      setTimeout(()=>drawMiniChart(
+        'botchart-'+id,[0,0],true),100);
+    });
+
+    // Update global stats every 2s
+    setInterval(updateBotsGlobalStats,2000);
+
+    console.log('[Trading Bots] ✅ Loaded');
+  },1000);
+});
+
+function updateBotsGlobalStats(){
+  const bots=Object.values(window._bots);
+  const active=bots.filter(b=>b.running).length;
+  const trades=bots.reduce((a,b)=>a+b.trades,0);
+  const profit=bots.reduce((a,b)=>a+b.profit,0);
+  const wins=bots.reduce((a,b)=>a+b.wins,0);
+  const total=bots.reduce((a,b)=>a+b.wins+b.losses,0)||1;
+  const wr=((wins/total)*100).toFixed(1);
+
+  const ae=document.getElementById('botsActive');
+  const te=document.getElementById('botsTrades');
+  const pe=document.getElementById('botsProfit');
+  const we=document.getElementById('botsWinRate');
+  if(ae) ae.textContent=active;
+  if(te) te.textContent=trades;
+  if(pe){
+    pe.textContent=(profit>=0?'+$':'-$')+
+      Math.abs(profit).toFixed(2);
+    pe.style.color=profit>=0?'var(--accent)':'var(--accent2)';
+  }
+  if(we) we.textContent=wr+'%';
+}
